@@ -1,0 +1,17 @@
+
+const express = require('express');
+const router = express.Router();
+
+const ApiUserController = require("../../controller/api/userController");
+const Authorization = require("../../middleware/authentication");
+const AuthorizationAdmin = require("../../middleware/authorizationAdmin");
+
+const upload = require("../../utils/multer");
+
+router.get("/", AuthorizationAdmin, ApiUserController.index);
+router.get("/admin_branches", AuthorizationAdmin, ApiUserController.getAdminBranches);
+router.post("/", AuthorizationAdmin, ApiUserController.create);
+router.get("/:id", ApiUserController.show);
+router.patch("/:id", upload.single('image'), Authorization, ApiUserController.update);
+
+module.exports = router;
