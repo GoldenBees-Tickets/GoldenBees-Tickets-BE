@@ -3,6 +3,7 @@ const { getAllCinemas } = require("../../service/cinemaService");
 const { getAllMovies } = require("../../service/movieSevice");
 const { getAllRoom } = require("../../service/roomService");
 const { getAllSeat } = require("../../service/seatService");
+const { getAllCombos } = require("../../service/comboService");
 
 class chatbotTestController {
   static async index(req, res) {
@@ -115,6 +116,109 @@ class chatbotTestController {
       resErrors(res, 500, error.message || "Internal Server Error");
     }
   }
+
+  static async getCombos(req, res) {
+    try {
+      const combos = await getAllCombos();
+      
+      const comboList = combos.map(combo => {
+        const items = combo.ComboItems ? combo.ComboItems.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          product: item.FoodAndDrink ? {
+            id: item.FoodAndDrink.id,
+            name: item.FoodAndDrink.name,
+            description: item.FoodAndDrink.description,
+            price: item.FoodAndDrink.price,
+            type: item.FoodAndDrink.type,
+            image: item.FoodAndDrink.image
+          } : null
+        })) : [];
+        
+        const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+        
+        return {
+          id: combo.id,
+          name: combo.name,
+          price: combo.price,
+          profilePicture: combo.profile_picture,
+          totalItems: totalItems,
+          items: items,
+          savings: calculateSavings(combo.price, items),
+          createdAt: combo.createdAt,
+          updatedAt: combo.updatedAt
+        };
+      });
+      
+      res.json({ 
+        message: "Get combos successfully", 
+        combos: comboList 
+      });
+    } catch (error) {
+      console.error("Error fetching combos:", error.message);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+  
+  static async getComboDetail(req, res) {
+    try {
+      const combo_id = req.params.id;
+      const combos = await getAllCombos();
+      
+      const combo = combos.find(c => c.id == combo_id);
+      
+      if (!combo) {
+        return resErrors(res, 404, "Combo not found");
+      }
+      
+      const items = combo.ComboItems ? combo.ComboItems.map(item => ({
+        id: item.id,
+        quantity: item.quantity,
+        product: item.FoodAndDrink ? {
+          id: item.FoodAndDrink.id,
+          name: item.FoodAndDrink.name,
+          description: item.FoodAndDrink.description,
+          price: item.FoodAndDrink.price,
+          type: item.FoodAndDrink.type,
+          image: item.FoodAndDrink.image
+        } : null
+      })) : [];
+      
+      const comboDetail = {
+        id: combo.id,
+        name: combo.name,
+        price: combo.price,
+        profilePicture: combo.profile_picture,
+        items: items,
+        savings: calculateSavings(combo.price, items),
+        createdAt: combo.createdAt,
+        updatedAt: combo.updatedAt
+      };
+      
+      res.json({ 
+        message: "Get combo detail successfully", 
+        combo: comboDetail 
+      });
+    } catch (error) {
+      console.error("Error fetching combo detail:", error.message);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+}
+
+function calculateSavings(comboPrice, items) {
+  const totalIndividualPrice = items.reduce((sum, item) => {
+    const itemPrice = item.product ? item.product.price * item.quantity : 0;
+    return sum + itemPrice;
+  }, 0);
+  
+  const savings = totalIndividualPrice - comboPrice;
+  
+  return {
+    individualTotal: totalIndividualPrice,
+    savings: savings,
+    savingsPercent: totalIndividualPrice > 0 ? Math.round((savings / totalIndividualPrice) * 100) : 0
+  };
 }
 
 module.exports = chatbotTestController;
