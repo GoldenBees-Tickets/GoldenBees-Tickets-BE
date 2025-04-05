@@ -40,8 +40,8 @@ class ApiMovieController {
 
   static async create(req, res) {
     try {
-      const { name, description, trailer, age_rating, duration, director_id, year, country, actor_id, genre_id, producer_id } = req.body;
-  
+      const { name, description, trailer, age_rating, duration, director_id, year, country, release_date, actor_id, genre_id, producer_id } = req.body;
+      
       if (!name || !duration || !director_id) {
         return resErrors(res, 400, "Name, duration, and director_id are required.");
       }
@@ -55,14 +55,15 @@ class ApiMovieController {
         description,
         trailer,
         poster,
-        age_rating,
+        age_rating: Number(age_rating),
         duration,
         director_id,
         year,
         country,
-        actor_id: Array.isArray(actor_id) ? actor_id.map(Number) : [], // Chuyển đổi thành số
-        genre_id: Array.isArray(genre_id) ? genre_id.map(Number) : [],
-        producer_id: Array.isArray(producer_id) ? producer_id.map(Number) : [],
+        release_date,
+        actorIds: Array.isArray(actor_id) ? actor_id.map(Number) : [], // Chuyển đổi thành số
+        genreIds: Array.isArray(genre_id) ? genre_id.map(Number) : [],
+        producerIds: Array.isArray(producer_id) ? producer_id.map(Number) : [],
       });
   
       res.json(newMovie);

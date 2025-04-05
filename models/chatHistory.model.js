@@ -39,7 +39,6 @@ module.exports = (sequelize, DataTypes) => {
     ChatHistory.associate = (models) => {
         ChatHistory.belongsTo(models.User, {
             foreignKey: 'userId',
-            as: 'user'
         });
     };
 

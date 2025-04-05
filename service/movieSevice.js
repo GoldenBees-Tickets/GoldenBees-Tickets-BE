@@ -68,14 +68,15 @@ const createMovieWithRelations = async ({
   description,
   trailer,
   poster,
-  ageRating,
+  age_rating,
   duration,
-  directorId,
+  director_id,
   year,
   country,
+  release_date,
   actorIds = [],
-  producerIds = [],
   genreIds = [],
+  producerIds = [],
 }) => {
   try {
     const movie = await Movie.create({
@@ -83,19 +84,20 @@ const createMovieWithRelations = async ({
       description,
       trailer,
       poster,
-      ageRating,
+      age_rating,
       duration,
-      directorId,
+      director_id,
       year,
       country,
+      release_date
     });
 
-    const movieId = Number(movie.id);
+    const movie_id = Number(movie.id);
 
     await Promise.all([
-      ...actorIds.map((actorId) => createMovieActor({ movieId, actorId: Number(actorId) })),
-      ...producerIds.map((producerId) => createMovieProducer({ movieId, producerId: Number(producerId) })),
-      ...genreIds.map((genreId) => createMovieGenre({ movieId, genreId: Number(genreId) })),
+      ...actorIds.map((actor_id) => createMovieActor({ movie_id, actor_id: Number(actor_id) })),
+      ...producerIds.map((producer_id) => createMovieProducer({ movie_id, producer_id: Number(producer_id) })),
+      ...genreIds.map((genre_id) => createMovieGenre({ movie_id, genre_id: Number(genre_id) })),
     ]);
 
     return { movie, status: 200, message: "Movie created successfully" };

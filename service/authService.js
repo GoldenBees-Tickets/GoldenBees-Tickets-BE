@@ -4,12 +4,19 @@ const _ = require("lodash");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 require("dotenv").config();
+const moment = require("moment-timezone");
+
 const KEY_TOKEN_RESET_PASS = process.env.KEY_TOKEN_RESET_PASS;
 const EMAIL_ADMIN = process.env.EMAIL_ADMIN;
 const PASS_ADMIN = process.env.PASS_ADMIN;
 const URL_CLIENT_BASE = process.env.URL_CLIENT_BASE;
 const KEY_ACCESS_TOKEN = process.env.KEY_ACCESS_TOKEN;
 const KEY_REFRESH_TOKEN = process.env.KEY_REFRESH_TOKEN;
+
+// Lấy thời gian hiện tại theo GMT+7
+const issuedAt = Math.floor(moment().tz("Asia/Ho_Chi_Minh").valueOf() / 1000);
+const expiresInAccessToken = issuedAt + 24 * 60 * 60; // 1 ngày
+const expiresInRefreshToken = issuedAt + 7 * 24 * 60 * 60; // 7 ngày
 
 const Login = async ({ email, password }) => {
   try {
@@ -32,16 +39,18 @@ const Login = async ({ email, password }) => {
           username: check.dataValues.username,
           email: check.dataValues.email,
           image: check.dataValues.image,
+          iat: issuedAt,
+          exp: expiresInAccessToken, // Hết hạn sau 1 ngày theo GMT+7
         },
-        KEY_ACCESS_TOKEN,
-        { expiresIn: "1d" }
+        KEY_ACCESS_TOKEN
       );
       const refreshToken = jwt.sign(
         {
           id: check.dataValues.id,
+          iat: issuedAt,
+          exp: expiresInRefreshToken, // Hết hạn sau 7 ngày theo GMT+7
         },
-        KEY_REFRESH_TOKEN,
-        { expiresIn: "7d" }
+        KEY_REFRESH_TOKEN
       );
 
       return {
@@ -103,16 +112,18 @@ const checkEmail = async ({ email, image }) => {
           username: check.dataValues.username,
           email: check.dataValues.email,
           image: check.dataValues.image,
+          iat: issuedAt,
+          exp: expiresInAccessToken, // Hết hạn sau 7 ngày theo GMT+7
         },
-        KEY_ACCESS_TOKEN,
-        { expiresIn: "1h" }
+        KEY_ACCESS_TOKEN
       );
       const refreshToken = jwt.sign(
         {
           id: check.dataValues.id,
+          iat: issuedAt,
+          exp: expiresInRefreshToken, // Hết hạn sau 7 ngày theo GMT+7
         },
-        KEY_REFRESH_TOKEN,
-        { expiresIn: "3d" }
+        KEY_REFRESH_TOKEN
       );
 
       return {
@@ -141,9 +152,13 @@ const forgotPassword = async (email) => {
     }
 
     const resetToken = jwt.sign(
-      { id: user.id, email: user.email },
-      KEY_TOKEN_RESET_PASS,
-      { expiresIn: "1h" }
+      {
+        id: user.id,
+        email: user.email,
+        iat: issuedAt,
+        exp: expiresInAccessToken, // Hết hạn sau 1 hour theo GMT+7
+      },
+      KEY_TOKEN_RESET_PASS
     );
 
     const emailResponse = await sendEmail({ email, token: resetToken });
@@ -205,17 +220,17 @@ const sendEmail = async ({ email, token }) => {
 
 const newPassword = async ({ email, token, password }) => {
   try {
-    const decoded = jwt.verify(token, KEY_TOKEN_RESET_PASS);    
-    const user = await User.findOne({where: { email, id: decoded.id }});
+    const decoded = jwt.verify(token, KEY_TOKEN_RESET_PASS);
+    const user = await User.findOne({ where: { email, id: decoded.id } });
     if (!user)
-      return ({ status: 400, message: "Token không hợp lệ hoặc đã hết hạn!" });
-    
+      return { status: 400, message: "Token không hợp lệ hoặc đã hết hạn!" };
+
     const salt = bcrypt.genSaltSync(10);
     const hashedPassword = bcrypt.hashSync(password, salt);
     user.password = hashedPassword;
     await user.save();
 
-    return ({status: 201, message: "Mật khẩu đã được cập nhật thành công!"});
+    return { status: 201, message: "Mật khẩu đã được cập nhật thành công!" };
   } catch (error) {
     console.error("Lỗi gửi email:", error.message);
     return { status: 500, message: error.message };

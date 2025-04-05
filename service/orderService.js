@@ -8,12 +8,12 @@ const { generateQRCode } = require('./qrService');
 
 // Cấu hình MOMO
 const MOMO_CONFIG = {
-    ACCESS_KEY: process.env.MOMO_ACCESS_KEY || 'F8BBA842ECF85',
-    SECRET_KEY: process.env.MOMO_SECRET_KEY || 'K951B6PE1waDMi640xX08PD3vg6EkVlz',
+    ACCESS_KEY: process.env.MOMO_ACCESS_KEY,
+    SECRET_KEY: process.env.MOMO_SECRET_KEY,
     
-    PARTNER_CODE: process.env.MOMO_PARTNER_CODE || 'MOMO',
-    REDIRECT_URL: process.env.CLIENT_URL || 'http://localhost:5173/payment-result',
-    IPN_URL: process.env.MOMO_IPN_URL || 'https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b'
+    PARTNER_CODE: process.env.MOMO_PARTNER_CODE,
+    REDIRECT_URL: process.env.CLIENT_URL,
+    IPN_URL: process.env.MOMO_IPN_URL
 };
 
 
@@ -430,7 +430,9 @@ const checkPaymentStatus = async (orderId) => {
 
             const user_id = orderData.user_id;
             const userData = await User.findOne({ where: { id: user_id } });
-            
+            userData.star = userData.star + 3;
+            await userData.save();
+
             const email = userData?.email;
 
             const showtimeData = await Showtime.findOne({ where: { id: orderData.showtime_id } });

@@ -12,6 +12,6 @@ router.get("/", AuthorizationAdmin, ApiUserController.index);
 router.get("/admin_branches", AuthorizationAdmin, ApiUserController.getAdminBranches);
 router.post("/", AuthorizationAdmin, ApiUserController.create);
 router.get("/:id", ApiUserController.show);
-router.patch("/:id", upload.single('image'), Authorization, ApiUserController.update);
+router.patch("/:id", Authorization, upload.single('image'), ApiUserController.update);
 
 module.exports = router;
