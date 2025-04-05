@@ -22,7 +22,6 @@ const sendQRCodeEmail = async ({
   seatDatas,
   total,
 }) => {
-  console.log("email nhận", email);
 
   try {
     // Tạo mã QR dạng Base64 để nhúng trực tiếp vào email
@@ -54,7 +53,6 @@ const sendQRCodeEmail = async ({
       qrUrl.replace("/qr-codes/", "")
     );
 
-    console.log("qr url", qrUrl);
     
     // Tạo nội dung HTML email với thông tin vé và mã QR
     const mailOptions = {

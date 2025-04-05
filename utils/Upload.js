@@ -8,7 +8,6 @@ const { v4: uuidv4 } = require('uuid');
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('Đã tạo thư mục uploads');
 }
 
 // Cấu hình lưu trữ

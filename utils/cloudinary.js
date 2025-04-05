@@ -15,10 +15,7 @@ cloudinary.config({
  * @param {string} fileName - Tên file trên Cloudinary
  * @returns {Promise<string>} - URL của ảnh đã upload
  */
-export const uploadToCloudinary = async (file, folder, fileName) => {
-    console.log("file utils", file);
-    console.log("file name", fileName);
-    
+export const uploadToCloudinary = async (file, folder, fileName) => {    
     
     try {
         // Tạo publicId theo thư mục
