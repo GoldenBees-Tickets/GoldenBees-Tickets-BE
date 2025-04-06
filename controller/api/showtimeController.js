@@ -8,7 +8,7 @@ class ApiShowtimeController {
             
             const showtimes = await getAllShowtime(branch_id);        
 
-            resData(res, 200, "Get showtimes successfully", showtimes);
+            return res.json(showtimes);
         } catch (error) {
             console.error("Error showtime:", error);
             resErrors(res, 500, error.message || "Internal Server Error");  
