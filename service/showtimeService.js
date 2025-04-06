@@ -1,8 +1,12 @@
 const { Op } = require("sequelize");
 const { Showtime, Movie, Room, Cinema } = require("../models");
 const moment = require("moment-timezone");
+const { error } = require("console");
 
-const getAllShowtime = async (branch_id) => {
+// Hàm lấy showtime theo branch_id
+const getShowtimeByBranchId = async (branch_id) => {
+  console.log("branch_id:", branch_id);
+
   try {
     const showtimes = await Showtime.findAll({
       include: [
@@ -12,24 +16,59 @@ const getAllShowtime = async (branch_id) => {
         {
           model: Room,
           attributes: ["name"],
+          required: true,
           include: [
             {
               model: Cinema,
               attributes: ["name"],
-              required: true, // Bắt buộc phải có Cinema thỏa mãn
+              required: true,
+              where: { branch_id },
             },
           ],
-          required: true, // Bắt buộc phải có Room thỏa mãn
         },
       ],
-      where: {
-        "$Room.Cinema.branch_id$": branch_id, // Lọc trực tiếp theo branch_id
-      },
     });
-    return showtimes;
+    return { success: true, status: 200, message: "Get showtimes successfully", error: null ,showtimes };
   } catch (error) {
-    console.error("Error fetching list of showtimes:", error.message);
+    console.error("Error fetching list of showtimes by branch:", error.message);
     throw error;
+  }
+};
+
+// Hàm lấy tất cả showtime không lọc theo branch
+const getAllShowtimes = async () => {
+  try {
+    const showtimes = await Showtime.findAll({
+      include: [
+        {
+          model: Movie,
+        },
+        {
+          model: Room,
+          attributes: ["name"],
+          required: true,
+          include: [
+            {
+              model: Cinema,
+              attributes: ["name"],
+            },
+          ],
+        },
+      ],
+    });
+    return  { success: true, status: 200, message: "Get showtimes successfully", error: null ,showtimes };
+  } catch (error) {
+    console.error("Error fetching all showtimes:", error.message);
+    throw error;
+  }
+};
+
+// Hàm cũ để tương thích ngược (gọi đến một trong hai hàm mới tùy thuộc vào tham số)
+const getAllShowtime = async (branch_id) => {
+  if (branch_id && branch_id !== "undefined" && branch_id !== "null") {    
+    return getShowtimeByBranchId(branch_id);
+  } else {    
+    return getAllShowtimes();
   }
 };
 
