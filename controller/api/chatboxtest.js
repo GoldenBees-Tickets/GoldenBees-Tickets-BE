@@ -4,6 +4,176 @@ const { getAllMovies } = require("../../service/movieSevice");
 const { getAllRoom } = require("../../service/roomService");
 const { getAllSeat } = require("../../service/seatService");
 const { getAllCombos } = require("../../service/comboService");
+const { getAllSeatType } = require("../../service/seatTypeService");
+const { getAllPriceSettingByBranchId } = require("../../service/priceSettingService");
+const { getAllShowtime, getShowtimeById, getShowtimesByMovieId } = require("../../service/showtimeService");
+const { Cinema } = require("../../models");
+
+// Khai báo biến toàn cục để lưu cache dữ liệu loại ghế
+let seatTypesCache = null;
+// Cache cho dữ liệu giá vé
+let priceSettingsCache = {};
+
+// Hàm lấy dữ liệu giá vé dựa trên branch_id
+async function getPriceSettingByBranchId(branch_id) {
+  try {
+    // Nếu đã có cache thì sử dụng cache
+    if (priceSettingsCache[branch_id]) {
+      return priceSettingsCache[branch_id];
+    }
+    
+    // Nếu chưa có cache thì lấy từ DB và lưu vào cache
+    const priceSetting = await getAllPriceSettingByBranchId(branch_id);
+    
+    if (!priceSetting) {
+      return {
+        base_ticket_price: 90000,
+        weekend_ticket_price: 110000,
+        holiday_ticket_price: 130000
+      };
+    }
+    
+    // Lưu vào cache
+    priceSettingsCache[branch_id] = {
+      base_ticket_price: Number(priceSetting.base_ticket_price) || 90000,
+      weekend_ticket_price: Number(priceSetting.weekend_ticket_price) || 110000,
+      holiday_ticket_price: Number(priceSetting.holiday_ticket_price) || 130000
+    };
+    
+    return priceSettingsCache[branch_id];
+  } catch (error) {
+    console.error(`Error fetching price setting for branch ${branch_id}:`, error.message);
+    // Trả về giá mặc định nếu có lỗi
+    return {
+      base_ticket_price: 90000,
+      weekend_ticket_price: 110000,
+      holiday_ticket_price: 130000
+    };
+  }
+}
+
+// Hàm helper để lấy thông tin loại ghế
+async function getSeatTypesData() {
+  try {
+    // Nếu đã có cache thì sử dụng cache
+    if (seatTypesCache) {
+      return seatTypesCache;
+    }
+    
+    // Nếu chưa có cache thì lấy từ DB và lưu vào cache
+    const seatTypes = await getAllSeatType();
+    
+    // Chuyển đổi dữ liệu và lưu cache
+    seatTypesCache = seatTypes.map(type => ({
+      id: type.id,
+      type: type.type,
+      color: type.color,
+      price_offset: Number(type.price_offset) || 0,
+      createdAt: type.createdAt,
+      updatedAt: type.updatedAt,
+      deletedAt: type.deletedAt
+    }));
+    
+    return seatTypesCache;
+  } catch (error) {
+    console.error("Error fetching seat types data:", error.message);
+    throw error;
+  }
+}
+
+// Hàm tính toán giá cơ bản dựa trên price_offset và branch_id
+async function calculateBasePrice(priceOffset, room_id) {
+  try {
+    // Tìm cinema_id từ room_id để lấy branch_id
+    const room = await getAllRoom(room_id);
+    if (!room || !room.rooms || room.rooms.length === 0) {
+      throw new Error(`Room with ID ${room_id} not found`);
+    }
+    
+    const cinema_id = room.rooms[0].cinema_id;
+    
+    // Lấy cinema để tìm branch_id
+    const cinema = await Cinema.findByPk(cinema_id);
+    if (!cinema) {
+      throw new Error(`Cinema with ID ${cinema_id} not found`);
+    }
+    
+    const branch_id = cinema.branch_id;
+    
+    // Lấy cài đặt giá từ branch_id
+    const priceSetting = await getPriceSettingByBranchId(branch_id);
+    
+    // Kiểm tra xem ngày hiện tại có phải là cuối tuần hay không
+    const today = new Date();
+    const isWeekend = today.getDay() === 0 || today.getDay() === 6; // 0 là Chủ nhật, 6 là Thứ 7
+    
+    // Tính toán giá vé dựa trên ngày và thiết lập giá
+    let basePrice;
+    if (isWeekend) {
+      basePrice = {
+        min: priceSetting.weekend_ticket_price,
+        max: priceSetting.weekend_ticket_price + 30000
+      };
+    } else {
+      basePrice = {
+        min: priceSetting.base_ticket_price,
+        max: priceSetting.base_ticket_price + 30000
+      };
+    }
+    
+    // Áp dụng price_offset của loại ghế
+    return {
+      min: basePrice.min + priceOffset,
+      max: basePrice.max + priceOffset
+    };
+  } catch (error) {
+    console.error("Error calculating base price:", error.message);
+    // Trả về giá mặc định nếu có lỗi
+    return {
+      min: 90000 + priceOffset,
+      max: 120000 + priceOffset
+    };
+  }
+}
+
+// Hàm helper để lấy thông tin về loại ghế theo ID
+async function getSeatTypeById(typeId) {
+  const seatTypes = await getSeatTypesData();
+  const seatType = seatTypes.find(type => type.id === typeId);
+  
+  if (seatType) {
+    return {
+      id: seatType.id,
+      type: seatType.type,
+      color: seatType.color,
+      price_offset: seatType.price_offset,
+      createdAt: seatType.createdAt,
+      updatedAt: seatType.updatedAt,
+      deletedAt: seatType.deletedAt
+    };
+  }
+  
+  throw new Error(`Seat type with ID ${typeId} not found`);
+}
+
+// Hàm tạo mô tả cho loại ghế
+async function getSeatTypeDescription(typeId, typeName = '', room_id) {
+  try {
+    const seatTypes = await getSeatTypesData();
+    const seatType = seatTypes.find(type => type.id === typeId || type.type === typeName);
+    
+    if (seatType) {
+      // Lấy giá cơ bản dựa trên room_id
+      const basePrice = await calculateBasePrice(seatType.price_offset, room_id);
+      return `${seatType.type} - Giá từ ${basePrice.min.toLocaleString('vi-VN')}đ đến ${basePrice.max.toLocaleString('vi-VN')}đ`;
+    }
+    
+    return 'Loại ghế không xác định';
+  } catch (error) {
+    console.error("Error generating seat type description:", error.message);
+    return 'Không thể lấy thông tin loại ghế';
+  }
+}
 
 class chatbotTestController {
   static async index(req, res) {
@@ -97,20 +267,75 @@ class chatbotTestController {
     try {
       const room_id = req.params.id;
       const seats = await getAllSeat(room_id);
+      
+      // Lấy thông tin loại ghế từ DB
+      const seatTypes = await getSeatTypesData();
+      
+      // Tạo map để truy cập nhanh thông tin loại ghế
+      const seatTypeMap = {};
+      seatTypes.forEach(type => {
+        seatTypeMap[type.id] = type;
+      });
 
-      const seatList = seats.map((seat) => ({
-        id: seat.id,
-        roomId: seat.room_id,
-        seatNumber: seat.seat_number,
-        seatRow: seat.seat_row,
-        isEnabled: seat.is_enabled,
-        typeId: seat.type_id,
-        createdAt: seat.createdAt,
-        updatedAt: seat.updatedAt,
-        deletedAt: seat.deletedAt,
-      })) 
+      const seatList = await Promise.all(seats.map(async (seat) => {
+        // Lấy thông tin loại ghế chi tiết
+        const typeInfo = await getSeatTypeById(seat.type_id);
+        
+        // Tính toán giá dựa trên loại ghế và phòng
+        const basePrice = await calculateBasePrice(typeInfo.price_offset, room_id);
+        
+        return {
+          id: seat.id,
+          roomId: seat.room_id,
+          seatNumber: seat.seat_number,
+          seatRow: seat.seat_row,
+          isEnabled: seat.is_enabled,
+          typeId: seat.type_id,
+          status: seat.status || 'Available',
+          type: {
+            ...typeInfo,
+            price: {
+              min: basePrice.min,
+              max: basePrice.max,
+              description: `Giá từ ${basePrice.min.toLocaleString('vi-VN')}đ đến ${basePrice.max.toLocaleString('vi-VN')}đ`
+            }
+          },
+          createdAt: seat.createdAt,
+          updatedAt: seat.updatedAt,
+          deletedAt: seat.deletedAt,
+        };
+      }));
 
-      res.json({ message: "Get seats successfully", seats: seats });
+      // Tạo thông tin tổng hợp về ghế
+      const seatSummary = {
+        totalSeats: seatList.length,
+        availableSeats: seatList.filter(seat => seat.status === 'Available').length,
+        reservedSeats: seatList.filter(seat => seat.status === 'Reserved').length,
+        bookedSeats: seatList.filter(seat => seat.status === 'Booked').length,
+        unavailableSeats: seatList.filter(seat => seat.status === 'Unavailable').length,
+        seatTypes: {}
+      };
+      
+      // Đếm số lượng và tính giá cho mỗi loại ghế
+      for (const type of seatTypes) {
+        const seatsOfType = seatList.filter(seat => seat.typeId === type.id);
+        const basePrice = await calculateBasePrice(type.price_offset, room_id);
+        
+        seatSummary.seatTypes[type.type] = {
+          count: seatsOfType.length,
+          price: {
+            min: basePrice.min,
+            max: basePrice.max,
+            description: `Giá từ ${basePrice.min.toLocaleString('vi-VN')}đ đến ${basePrice.max.toLocaleString('vi-VN')}đ`
+          }
+        };
+      }
+
+      res.json({ 
+        message: "Get seats successfully", 
+        seats: seatList,
+        summary: seatSummary
+      });
     } catch (error) {
       console.error("Error fetching seats:", error);
       resErrors(res, 500, error.message || "Internal Server Error");
@@ -201,6 +426,182 @@ class chatbotTestController {
       });
     } catch (error) {
       console.error("Error fetching combo detail:", error.message);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+
+  static async getSeatTypes(req, res) {
+    try {
+      // Lấy dữ liệu loại ghế từ database
+      const seatTypes = await getSeatTypesData();
+      
+      // Chỉ lấy các trường cần thiết
+      const seatTypesList = seatTypes.map(type => {
+        return {
+          id: type.id,
+          type: type.type,
+          color: type.color,
+          price_offset: Number(type.price_offset)
+        };
+      });
+
+      res.json({
+        message: "Get seat types successfully",
+        seatTypes: seatTypesList
+      });
+    } catch (error) {
+      console.error("Error fetching seat types:", error.message);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+
+  static async getPriceSettings(req, res) {
+    try {
+      const branch_id = req.params.id;
+      
+      // Lấy thông tin giá vé từ database
+      const priceSetting = await getAllPriceSettingByBranchId(branch_id);
+      
+      if (!priceSetting) {
+        return resErrors(res, 404, "Price settings not found for this branch");
+      }
+
+      // Format dữ liệu trả về
+      const priceSettings = {
+        id: priceSetting.id,
+        branch_id: priceSetting.branch_id,
+        prices: {
+          base: {
+            amount: Number(priceSetting.base_ticket_price),
+            formatted: priceSetting.base_ticket_price.toLocaleString('vi-VN') + 'đ',
+            description: 'Giá vé ngày thường'
+          },
+          weekend: {
+            amount: Number(priceSetting.weekend_ticket_price),
+            formatted: priceSetting.weekend_ticket_price.toLocaleString('vi-VN') + 'đ',
+            description: 'Giá vé cuối tuần'
+          },
+          holiday: {
+            amount: Number(priceSetting.holiday_ticket_price),
+            formatted: priceSetting.holiday_ticket_price.toLocaleString('vi-VN') + 'đ',
+            description: 'Giá vé ngày lễ'
+          }
+        },
+        createdAt: priceSetting.createdAt,
+        updatedAt: priceSetting.updatedAt,
+        deletedAt: priceSetting.deletedAt
+      };
+
+      res.json({
+        message: "Get price settings successfully",
+        priceSettings: priceSettings
+      });
+    } catch (error) {
+      console.error("Error fetching price settings:", error.message);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+
+  static async getShowtimes(req, res) {
+    try {
+      const branch_id = req.query.branch_id; // Có thể lọc theo branch_id hoặc không
+      
+      let result;
+      if (branch_id) {
+        // Nếu có branch_id, gọi API lấy showtime theo branch
+        result = await getAllShowtime(branch_id);
+      } else {
+        // Nếu không có branch_id, lấy tất cả showtime
+        result = await getAllShowtime();
+      }
+      
+      if (!result.success) {
+        return resErrors(res, result.status, result.message);
+      }
+      
+      // Định dạng lại dữ liệu trả về cho dễ đọc
+      const formattedShowtimes = result.showtimes.map(showtime => {
+        const startTime = new Date(showtime.start_time);
+        const endTime = new Date(showtime.end_time);
+        
+        return {
+          id: showtime.id,
+          movie: showtime.Movie ? {
+            id: showtime.Movie.id,
+            name: showtime.Movie.name,
+            poster: showtime.Movie.poster,
+            duration: showtime.Movie.duration,
+            ageRating: showtime.Movie.age_rating
+          } : null,
+          room: showtime.Room ? {
+            id: showtime.Room.id,
+            name: showtime.Room.name,
+            cinema: showtime.Room.Cinema ? {
+              id: showtime.Room.Cinema.id,
+              name: showtime.Room.Cinema.name
+            } : null
+          } : null,
+          dateTime: {
+            date: startTime.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+            dayOfWeek: startTime.toLocaleDateString('vi-VN', { weekday: 'long' }),
+            startTime: startTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            endTime: endTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          },
+          basePrice: Number(showtime.base_price),
+          status: showtime.status
+        };
+      });
+      
+      res.json({
+        message: "Get showtimes successfully",
+        showtimes: formattedShowtimes
+      });
+    } catch (error) {
+      console.error("Error fetching showtimes:", error.message);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+  
+  static async getShowtimeDetail(req, res) {
+    try {
+      const showtime_id = req.params.id;
+      
+      const result = await getShowtimeById(showtime_id);
+      
+      if (result.status !== 200) {
+        return resErrors(res, result.status, result.message);
+      }
+      
+      res.json({
+        message: "Get showtime detail successfully",
+        showtime: result.showtime
+      });
+    } catch (error) {
+      console.error("Error fetching showtime detail:", error.message);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+
+  static async getShowtimesByMovie(req, res) {
+    try {
+      const movie_id = req.params.id;
+      
+      if (!movie_id) {
+        return resErrors(res, 400, "Movie ID is required");
+      }
+      
+      const result = await getShowtimesByMovieId(movie_id);
+      
+      if (result.status !== 200) {
+        return resErrors(res, result.status, result.message);
+      }
+      
+      res.json({
+        message: "Get showtimes for movie successfully",
+        data: result.data
+      });
+    } catch (error) {
+      console.error("Error fetching showtimes for movie:", error.message);
       resErrors(res, 500, error.message || "Internal Server Error");
     }
   }
