@@ -12,9 +12,10 @@ const uploadFolder = "users";
 class ApiUserController {
   static async index(req, res) {
     try {
-      const users = await getAllUsers();
+      const { page = 1, limit = 10, search = '' } = req.query;
+      const result = await getAllUsers(parseInt(page), parseInt(limit), search);
       const message = "Get users is successfully";
-      res.json({ message, users });
+      res.json({ message, ...result });
     } catch (error) {
       console.error("Error fetching user data:", error);
       resErrors(res, 500, error.message || "Internal Server Error");
@@ -23,9 +24,10 @@ class ApiUserController {
 
   static async getAdminBranches(req, res) {
     try {
-      const admin_branches = await getAllAdminBranches();
+      const { page = 1, limit = 10, search = '' } = req.query;
+      const result = await getAllAdminBranches(parseInt(page), parseInt(limit), search);
       const message = "Get admin branches is successfully";
-      res.json({ message, admin_branches });
+      res.json({ message, ...result });
     } catch (error) {
       console.error("Error fetching admin branches data:", error);
       resErrors(res, 500, error.message || "Internal Server Error");

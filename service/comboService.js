@@ -1,9 +1,33 @@
 const { Combo, ComboItem, FoodAndDrink, sequelize } = require('../models'); // Import model Combo
+const { Op } = require('sequelize');
 
-// Service để lấy tất cả các combo
-const getAllCombos = async () => {
+// Service để lấy tất cả các combo với phân trang, tìm kiếm và sắp xếp
+const getAllCombos = async (options = {}) => {
     try {
-        return await Combo.findAll({
+        const { page = 1, limit = 10, search = '', sort_order = 'desc' } = options;
+        
+        // Tính offset cho phân trang
+        const offset = (page - 1) * limit;
+        
+        // Xây dựng điều kiện tìm kiếm
+        let whereClause = {};
+        
+        // Tìm kiếm theo tên combo
+        if (search) {
+            whereClause.name = {
+                [Op.like]: `%${search}%`
+            };
+        }
+        
+        // Đếm tổng số bản ghi thỏa mãn điều kiện
+        const { count } = await Combo.findAndCountAll({
+            where: whereClause,
+            distinct: true
+        });
+        
+        // Lấy danh sách với phân trang và sắp xếp
+        const combos = await Combo.findAll({
+            where: whereClause,
             include: [
               {
                 model: ComboItem,
@@ -13,12 +37,29 @@ const getAllCombos = async () => {
                   }
                 ]
               }
+            ],
+            limit,
+            offset,
+            order: [
+                ['name', sort_order.toUpperCase()]
             ]
-          });
+        });
+        
+        // Trả về dữ liệu kèm thông tin phân trang
+        return {
+            items: combos,
+            pagination: {
+                total: count,
+                totalPages: Math.ceil(count / limit),
+                currentPage: parseInt(page),
+                limit: parseInt(limit)
+            }
+        };
     } catch (error) {
         throw new Error(error.message || "Lỗi khi lấy danh sách combo");
     }
 };
+
 // Service để lấy thông tin combo theo ID
 const getCombo = async (id) => {
     try {
@@ -104,13 +145,15 @@ const updateCombo = async (id, { name, price, profile_picture, ComboItems }) => 
 
 // Service để xóa combo (xóa mềm)
 const deleteCombo = async (id) => {
+    const transaction = await sequelize.transaction();
     try {
-        const combo = await Combo.destroy({ where: { id } });
 
-        if (!combo) {
-            throw new Error("Không tìm thấy combo để xóa");
-        }
-        return combo;
+        await ComboItem.destroy({ where: { combo_id: id } });
+
+        await Combo.destroy({ where: { id } });
+
+        await transaction.commit();
+        return {success: true, message: "Xóa combo thành công", error: null};
     } catch (error) {
         throw new Error(error.message || "Lỗi khi xóa combo");
     }

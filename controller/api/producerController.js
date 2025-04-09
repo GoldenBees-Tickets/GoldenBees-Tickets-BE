@@ -12,8 +12,21 @@ const uploadFolder = "producers";
 class ApiProducerController {
   static async index(req, res) {
     try {
-      const producers = await getAllProducers();
-      res.json({ message: "Get producers successfully", producers });
+      // Lấy các tham số phân trang, tìm kiếm và sắp xếp từ request
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 5;
+      const search = req.query.search || '';
+      const sort_order = req.query.sort_order || 'desc';
+      
+      // Gọi service với các tham số
+      const result = await getAllProducers({ page, limit, search, sort_order });
+      
+      // Trả về dữ liệu với thông tin phân trang
+      res.json({
+        message: "Get producers successfully",
+        producers: result.producers,
+        pagination: result.pagination
+      });
     } catch (error) {
       console.error("Error fetching producers:", error.message);
       resErrors(res, 500, "Internal Server Error");
@@ -77,11 +90,10 @@ class ApiProducerController {
       console.error("Error updating producer:", error.message);
       resErrors(res, 500, "Internal Server Error");
     }
-}
+  }
 
-
-static async delete(req, res) {
-  try {
+  static async delete(req, res) {
+    try {
       const { id } = req.params;
 
       // Lấy thông tin Producer trước khi xóa
@@ -99,11 +111,11 @@ static async delete(req, res) {
       const deleted = await deleteProducer(id);
 
       res.json(deleted);
-  } catch (error) {
+    } catch (error) {
       console.error("Error deleting producer:", error.message);
       resErrors(res, 500, "Internal Server Error");
+    }
   }
-}
 }
 
 module.exports = ApiProducerController;

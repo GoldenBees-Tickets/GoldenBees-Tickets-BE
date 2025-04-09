@@ -24,6 +24,11 @@ module.exports = (sequelize, DataTypes) => {
           type: DataTypes.ENUM('admin', 'branch_admin', 'user'),
           defaultValue: "user",
         },
+        is_active: {
+          type: DataTypes.BOOLEAN,
+          allowNull: false,
+          defaultValue: false,
+        },
         branch_id: {
           type: DataTypes.INTEGER,
           defaultValue: null, 

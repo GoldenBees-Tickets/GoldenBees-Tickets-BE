@@ -94,10 +94,6 @@ const updateComboItem = async (combo_id, data) => {
       throw new Error(error.message || "Lỗi khi cập nhật combo item");
     }
   };
-  
-  
-  
-  
 
 const deleteComboItem = async (combo_id) => {
     try {

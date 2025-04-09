@@ -4,9 +4,21 @@ const { getAllCinemas, createCinema, updateCinema, deleteCinema, getCinema, getC
 class ApiCinemaController {
     static async index(req, res) {
         try {
-            const cinemas = await getAllCinemas();
-            const message = "Get cinemas successfully";
-            res.json({ message, cinemas });
+            // Lấy các tham số phân trang, tìm kiếm và sắp xếp từ request
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 5;
+            const search = req.query.search || '';
+            const sort_order = req.query.sort_order || 'desc';
+            
+            // Gọi service với các tham số
+            const result = await getAllCinemas({ page, limit, search, sort_order });
+            
+            // Trả về dữ liệu với thông tin phân trang
+            res.json({
+                message: "Get cinemas successfully",
+                cinemas: result.cinemas,
+                pagination: result.pagination
+            });
         } catch (error) {
             console.error("Error fetching cinemas", error.message);
             resErrors(res, 500, error.message || "Internal Server Error");

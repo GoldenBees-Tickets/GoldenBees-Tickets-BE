@@ -10,6 +10,9 @@ const Authorization = (req, res, next) => {
 
   jwt.verify(token, KEY_ACCESS_TOKEN, (err, user) => {
     if (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Token has expired. Please log in again.' });
+      }
       return res.status(403).json({ message: 'Invalid token' });
     }
     req.user = user; 

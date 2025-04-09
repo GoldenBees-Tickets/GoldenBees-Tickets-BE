@@ -134,15 +134,24 @@ const payWithMoMo = async (data) => {
     const order = await Order.create({ user_id, total, showtime_id });
 
     const seatStatusPromises = seat_ids.map(async (item) => {
-      return await SeatStatus.create({ seat_id: item.id, showtime_id, user_id, status: "Blocked" });
-    });    
+      return await SeatStatus.create({
+        seat_id: item.id,
+        showtime_id,
+        user_id,
+        status: "Blocked",
+      });
+    });
 
     const order_id = order.id;
     const requestId = order_id;
 
     // Tạo danh sách vé
     const ticketPromises = seat_ids.map(async (item) => {
-      return await Ticket.create({ order_id, seat_id: item.id, price: item.price });
+      return await Ticket.create({
+        order_id,
+        seat_id: item.id,
+        price: item.price,
+      });
     });
 
     // Tạo danh sách combo
@@ -155,10 +164,10 @@ const payWithMoMo = async (data) => {
     });
 
     await Promise.all([
-        ...ticketPromises,
-        ...orderComboPromises,
-        ...seatStatusPromises
-      ]);
+      ...ticketPromises,
+      ...orderComboPromises,
+      ...seatStatusPromises,
+    ]);
 
     if (promotion_id) {
       promotion_id = Number(promotion_id);
@@ -468,7 +477,7 @@ const checkPaymentStatus = async (orderId) => {
     await userData.save();
 
     const email = userData?.email;
-    
+
     const SeatIds = await Ticket.findAll({
       where: { order_id: orderId },
     });
@@ -476,8 +485,6 @@ const checkPaymentStatus = async (orderId) => {
     const showtimeData = await Showtime.findOne({
       where: { id: orderData.showtime_id },
     });
-    console.log("SeatIds", SeatIds);
-    
     const updateShowtimeStatus = SeatIds?.map(async (item) => {
       return await SeatStatus.update(
         { status: "Booked" },
@@ -487,8 +494,8 @@ const checkPaymentStatus = async (orderId) => {
             showtime_id: orderData.showtime_id,
           },
         }
-      )});
-    
+      );
+    });
 
     if (!showtimeData) throw new Error("Không tìm thấy suất chiếu.");
 

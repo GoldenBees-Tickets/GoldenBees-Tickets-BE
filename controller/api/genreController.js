@@ -4,10 +4,12 @@ const { getAllGenres, getGenre, createGenre, updateGenre, deleteGenre } = requir
 class ApiGenreController {
     static async index(req, res) {
         try {
-            const genres = await getAllGenres();
-            res.json({ message: "Get genres successfully", genres });
+            const { page = 1, limit = 5, search = '' } = req.query;
+            const result = await getAllGenres(parseInt(page), parseInt(limit), search);
+            const message = "Get genres is successfully";
+            res.json({ message, ...result });
         } catch (error) {
-            console.error("Error fetching genres:", error.message);
+            console.error("Error fetching genre data:", error);
             resErrors(res, 500, error.message || "Internal Server Error");
         }
     }
@@ -16,24 +18,20 @@ class ApiGenreController {
         try {
             const { id } = req.params;
             const genre = await getGenre(id);
-            if (genre) {
-                res.json({ message: "Get genre successfully", genre });
-            } else {
-                resErrors(res, 404, "Genre not found");
-            }
+            res.json(genre);
         } catch (error) {
-            console.error("Error fetching genre:", error.message);
+            console.error("Error fetching genre:", error);
             resErrors(res, 500, error.message || "Internal Server Error");
         }
     }
 
     static async create(req, res) {
         try {
-            const { name } = req.body;
-            const genre = await createGenre({ name });
-            res.json({ message: "Genre created successfully", genre });
+            const { name, description } = req.body;
+            const genre = await createGenre({ name, description });
+            res.json(genre);
         } catch (error) {
-            console.error("Error creating genre:", error.message);
+            console.error("Error creating genre:", error);
             resErrors(res, 500, error.message || "Internal Server Error");
         }
     }
@@ -41,16 +39,11 @@ class ApiGenreController {
     static async update(req, res) {
         try {
             const { id } = req.params;
-            const { name } = req.body;
-            const updated = await updateGenre({ id, name });
-
-            if (updated[0] === 0) {
-                resErrors(res, 404, "Genre not found or no changes made");
-            } else {
-                res.json({ message: "Genre updated successfully" });
-            }
+            const { name, description } = req.body;
+            const genre = await updateGenre(id, { name, description });
+            res.json(genre);
         } catch (error) {
-            console.error("Error updating genre:", error.message);
+            console.error("Error updating genre:", error);
             resErrors(res, 500, error.message || "Internal Server Error");
         }
     }
@@ -58,15 +51,10 @@ class ApiGenreController {
     static async delete(req, res) {
         try {
             const { id } = req.params;
-            const deleted = await deleteGenre(id);
-
-            if (deleted === 0) {
-                resErrors(res, 404, "Genre not found");
-            } else {
-                res.json({ message: "Genre deleted successfully" });
-            }
+            const result = await deleteGenre(id);
+            res.json(result);
         } catch (error) {
-            console.error("Error deleting genre:", error.message);
+            console.error("Error deleting genre:", error);
             resErrors(res, 500, error.message || "Internal Server Error");
         }
     }

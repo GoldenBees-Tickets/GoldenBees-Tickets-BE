@@ -1,13 +1,57 @@
 const { error } = require("console");
 const { Promotion, PromotionUsage } = require("../models");
+const { Op } = require("sequelize");
 
-// Lấy tất cả các chương trình khuyến mãi
-const getAllPromotions = async () => {
+// Lấy tất cả các chương trình khuyến mãi với phân trang, tìm kiếm và sắp xếp
+const getAllPromotions = async (options = {}) => {
   try {
-    const promotions = await Promotion.findAll();
-    return promotions;
+    const { page = 1, limit = 10, search = '', sort_order = 'desc' } = options;
+    
+    // Tính offset cho phân trang
+    const offset = (page - 1) * limit;
+    
+    // Xây dựng điều kiện tìm kiếm
+    let whereClause = {};
+    
+    // Tìm kiếm theo tên hoặc mã code khuyến mãi
+    if (search) {
+      whereClause = {
+        [Op.or]: [
+          { name: { [Op.like]: `%${search}%` } },
+          { code: { [Op.like]: `%${search}%` } }
+        ]
+      };
+    }
+    
+    // Đếm tổng số bản ghi thỏa mãn điều kiện
+    const { count } = await Promotion.findAndCountAll({
+      where: whereClause,
+      distinct: true
+    });
+    
+    // Lấy danh sách với phân trang và sắp xếp
+    const promotions = await Promotion.findAll({
+      where: whereClause,
+      limit,
+      offset,
+      order: [
+        ['name', sort_order.toUpperCase()]
+      ]
+    });
+    
+    // Trả về dữ liệu kèm thông tin phân trang
+    return {
+      items: promotions,
+      pagination: {
+        total: count,
+        totalPages: Math.ceil(count / limit),
+        currentPage: parseInt(page),
+        limit: parseInt(limit)
+      }
+    };
   } catch (error) {
     console.error("Error fetching promotions", error.message);
+    throw error;
   }
 };
 
