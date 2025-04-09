@@ -1,9 +1,52 @@
 const { Producer } = require("../models");
+const { Op } = require('sequelize');
 
 // Lấy tất cả producer
-const getAllProducers = async () => {
+const getAllProducers = async (options = {}) => {
   try {
-    return await Producer.findAll();
+    const { page = 1, limit = 5, search = '', sort_order = 'desc' } = options;
+    
+    // Tính toán offset cho phân trang
+    const offset = (page - 1) * limit;
+    
+    // Xây dựng điều kiện tìm kiếm
+    let whereClause = {};
+    
+    // Tìm kiếm theo tên nhà sản xuất
+    if (search) {
+      whereClause.name = {
+        [Op.like]: `%${search}%`
+      };
+    }
+    
+    // Đếm tổng số nhà sản xuất thỏa mãn điều kiện
+    const { count } = await Producer.findAndCountAll({
+      where: whereClause,
+      distinct: true
+    });
+    
+    // Lấy dữ liệu nhà sản xuất với phân trang và sắp xếp
+    const producers = await Producer.findAll({
+      where: whereClause,
+      limit: limit,
+      offset: offset,
+      order: [
+        ['name', sort_order.toUpperCase()]
+      ]
+    });
+    
+    // Tính toán thông tin phân trang
+    const totalPages = Math.ceil(count / limit);
+    
+    return {
+      producers,
+      pagination: {
+        total: count,
+        totalPages,
+        currentPage: page,
+        limit
+      }
+    };
   } catch (error) {
     console.error("Error fetching producers:", error.message);
     throw error;
@@ -78,3 +121,4 @@ module.exports = {
   updateProducer,
   deleteProducer,
 };
+

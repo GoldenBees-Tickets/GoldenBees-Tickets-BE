@@ -9,14 +9,17 @@ const AuthorizationBranchAdmin = (req, res, next) => {
     return res.status(401).json({ message: 'Access token is missing' });
   }
 
-  jwt.verify(token, KEY_ACCESS_TOKEN, (err, user) => {    
+  jwt.verify(token, KEY_ACCESS_TOKEN, (err, user) => {   
     if (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Token has expired. Please log in again.' });
+      }
       return res.status(403).json({ message: 'Invalid token' });
     }
-    if(user.role === 'branch_admin' || user.role === 'admin') {
+    if(user.role === 'branch_admin' || user.role === 'admin') {      
         req.user = user; 
         next(); 
-    } else {
+    } else {      
         res.status(403).json({ message: 'You do not have access!' });
     }
   });

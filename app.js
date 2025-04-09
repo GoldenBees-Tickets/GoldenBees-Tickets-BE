@@ -11,6 +11,9 @@ const { Server } = require('socket.io');
 const { handleSeatSocket, startCleanupInterval } = require('./socketSeat');
 const URL_CLIENT_BASE = process.env.URL_CLIENT_BASE;
 const PORT = process.env.PORT_SERVER || 3000;
+const cron = require('node-cron');
+const {updateStatuses} = require("./service/movieSevice");
+
 
 // Đảm bảo thư mục uploads tồn tại
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -26,6 +29,17 @@ const io = new Server(server, {
     origin: URL_CLIENT_BASE,
     methods: ["GET", "POST"],
     credentials: true
+  }
+});
+
+// Cấu hình cron chạy mỗi ngày lúc 1h sáng
+cron.schedule('0 1 * * *', async () => {
+  console.log('🕐 Đang cập nhật trạng thái phim...');
+  try {
+    await updateStatuses();
+    console.log('✅ Đã cập nhật xong!');
+  } catch (err) {
+    console.error('❌ Lỗi khi cập nhật status phim:', err);
   }
 });
 

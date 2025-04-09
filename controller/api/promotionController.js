@@ -4,9 +4,21 @@ const { getAllPromotions, createPromotion, updatePromotion, deletePromotion, get
 class ApiPromotionController {
     static async index(req, res) {
         try {
-            const promotions = await getAllPromotions();
-            const message = "Get promotions successfully";
-            res.json({ message, promotions });
+            // Lấy các tham số phân trang, tìm kiếm và sắp xếp từ request
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const search = req.query.search || '';
+            const sort_order = req.query.sort_order || 'desc';
+            
+            // Gọi service với các tham số
+            const result = await getAllPromotions({ page, limit, search, sort_order });
+            
+            // Trả về dữ liệu với thông tin phân trang
+            res.json({
+                message: "Get promotions successfully",
+                items: result.items,
+                pagination: result.pagination
+            });
         } catch (error) {
             console.error("Error fetching promotions", error.message);
             resErrors(res, 500, error.message || "Internal Server Error");

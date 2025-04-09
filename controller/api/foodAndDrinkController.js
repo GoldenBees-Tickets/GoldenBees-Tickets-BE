@@ -9,9 +9,22 @@ const {
 class ApiFoodAndDrinkController {
     static async index(req, res) {
         try {
-            const foodAndDrinks = await getAllFoodAndDrinks();
-            const message = "Lấy danh sách thực phẩm và đồ uống thành công";
-            resData(res, 200, message, foodAndDrinks);
+            // Lấy các tham số phân trang, tìm kiếm và sắp xếp từ request
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const search = req.query.search || '';
+            const sort_order = req.query.sort_order || 'desc';
+            const type = req.query.type || '';
+            
+            // Gọi service với các tham số
+            const result = await getAllFoodAndDrinks({ page, limit, search, sort_order, type });
+            
+            // Trả về dữ liệu với thông tin phân trang
+            res.json({
+                message: "Lấy danh sách thực phẩm và đồ uống thành công",
+                items: result.items,
+                pagination: result.pagination
+            });
         } catch (error) {
             console.error("Lỗi khi lấy danh sách thực phẩm và đồ uống", error.message);
             resErrors(res, 500, error.message || "Lỗi khi lấy danh sách thực phẩm và đồ uống");

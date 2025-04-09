@@ -10,8 +10,21 @@ const {
 class ApiRoomController {
   static async index(req, res) {
     try {
-      const rooms = await getAllRoom();
-      resData(res, 200, "Get all rooms successfully", rooms);
+      // Lấy các tham số phân trang, tìm kiếm và sắp xếp từ request
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const search = req.query.search || '';
+      const sort_order = req.query.sort_order || 'desc';
+      
+      // Gọi service với các tham số
+      const result = await getAllRoom({ page, limit, search, sort_order });
+      
+      // Trả về dữ liệu với thông tin phân trang
+      res.json({
+        message: "Get all rooms successfully",
+        rooms: result.rooms,
+        pagination: result.pagination
+      });
     } catch (error) {
       console.error("Error fetching rooms:", error.message);
       resErrors(res, 500, error.message || "Internal Server Error");
@@ -19,9 +32,10 @@ class ApiRoomController {
   }
 
   static async show(req, res) {
-    try {
+    try {      
       const { id } = req.params;
-      const room = await getRoom(id);
+      const { showtime_id } = req.query; // Lấy showtime_id từ query parameter
+      const room = await getRoom({id, showtime_id});
       resData(res, 200, "Get room successfully", room);
     } catch (error) {
       console.error("Error fetching room:", error.message);

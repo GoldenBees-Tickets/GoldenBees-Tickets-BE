@@ -1,50 +1,92 @@
 const { User, Branch } = require("../models");
 const bcrypt = require("bcryptjs");
+const { error } = require("console");
 const { Op } = require("sequelize");
 
-const getAllUsers = async () => {
+const getAllUsers = async (page = 1, limit = 10, search = '') => {
   try {
-    const users = await User.findAll();
-    return users;
+    const offset = (page - 1) * limit;
+    const whereClause = search ? {
+      [Op.or]: [
+        { username: { [Op.like]: `%${search}%` } },
+        { email: { [Op.like]: `%${search}%` } }
+      ]
+    } : {};
+
+    const { count, rows: users } = await User.findAndCountAll({
+      where: whereClause,
+      limit,
+      offset,
+      order: [['createdAt', 'DESC']]
+    });
+
+    return {
+      users,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      }
+    };
   } catch (error) {
     console.error("Error fetching list users", error);
     throw error;
   }
 };
 
-const getAllAdminBranches = async () => {
+const getAllAdminBranches = async (page = 1, limit = 10, search = '') => {
   try {
-    const adminBranches = await User.findAll({
-      where: {
-        role: "branch_admin",
-        branch_id: { [Op.ne]: null }, // Chỉ lấy admin có branch_id
-      },
+    const offset = (page - 1) * limit;
+    const whereClause = {
+      role: "branch_admin",
+      branch_id: { [Op.ne]: null },
+      ...(search && {
+        [Op.or]: [
+          { username: { [Op.like]: `%${search}%` } },
+          { email: { [Op.like]: `%${search}%` } }
+        ]
+      })
+    };
+
+    const { count, rows: adminBranches } = await User.findAndCountAll({
+      where: whereClause,
       include: {
         model: Branch,
-        attributes: ["name"], 
+        attributes: ["name"],
       },
+      limit,
+      offset,
+      order: [['createdAt', 'DESC']]
     });
 
-    return adminBranches;
+    return {
+      adminBranches,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      }
+    };
   } catch (error) {
     console.error("Error fetching list of branch admins:", error);
     throw new Error("Failed to fetch branch admins. Please try again.");
   }
 };
 
-
 const createAdminBranch = async ({username, email, password, role, branch_id}) => {
   try {
     const check = await User.findOne({where: {email}});
     if (check) {
-      return {status: 401, message: "Email đã tồn tại trong hệ thống!"};
+      return {status: 409, success: false, error: true, message: "Email đã tồn tại trong hệ thống!"};
     }
 
     const salt = bcrypt.genSaltSync(10);
     password = bcrypt.hashSync(password, salt);
     
     const user = await User.create({username, email, password, role, branch_id});
-    return {status: 200, message: "Tạo nhân viên thành công!", user};
+    return {status: 200, success: true, error: false, message: "Tạo nhân viên thành công!", user};
   } catch (error) {
     console.error("Error create admin branch", error);
     throw new Error("Error", error.message);

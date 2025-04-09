@@ -12,12 +12,16 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: true,
                 onDelete: 'CASCADE',
             },
+            show_date: {
+                type: DataTypes.DATEONLY, // Chỉ ngày (yyyy-mm-dd)
+                allowNull: false,
+            },
             start_time: {
-                type: DataTypes.DATE,
+                type: DataTypes.TIME, // Chỉ giờ (HH:mm:ss)
                 allowNull: false,
             },
             end_time: {
-                type: DataTypes.DATE,
+                type: DataTypes.TIME, // Chỉ giờ (HH:mm:ss)
                 allowNull: false,
             },
             base_price: {
@@ -31,8 +35,8 @@ module.exports = (sequelize, DataTypes) => {
             },
         },
         {
-            timestamps: true,  
-            paranoid: true,  
+            timestamps: true,
+            paranoid: true,
         }
     );
 

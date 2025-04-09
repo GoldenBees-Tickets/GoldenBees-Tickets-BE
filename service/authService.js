@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 const moment = require("moment-timezone");
+const { error } = require("console");
 
 const KEY_TOKEN_RESET_PASS = process.env.KEY_TOKEN_RESET_PASS;
 const EMAIL_ADMIN = process.env.EMAIL_ADMIN;
@@ -26,10 +27,18 @@ const Login = async ({ email, password }) => {
     const check = await User.findOne({ where: { email } });
 
     if (!check) {
-      return { status: 401, message: "Sai tài khoản hoặc mật khẩu!" };
+      return { status: 401, success: false, error: true, message: "Sai tài khoản hoặc mật khẩu!" };
     }
 
-    const checkPass = bcrypt.compareSync(password, check.dataValues.password);
+    if(check.dataValues.is_active === false) {
+      return { 
+        status: 403, 
+        success: false, 
+        error: true, 
+        message: "Tài khoản chưa được kích hoạt! Vui lòng kích hoạt tài khoản"};
+    }
+
+    const checkPass = await bcrypt.compare(password, check.dataValues.password);
 
     if (checkPass) {
       const accessToken = jwt.sign(
@@ -39,35 +48,36 @@ const Login = async ({ email, password }) => {
           username: check.dataValues.username,
           email: check.dataValues.email,
           image: check.dataValues.image,
-          iat: issuedAt,
-          exp: expiresInAccessToken, // Hết hạn sau 1 ngày theo GMT+7
         },
-        KEY_ACCESS_TOKEN
+        KEY_ACCESS_TOKEN,
+        { expiresIn: '1d' }
       );
       const refreshToken = jwt.sign(
         {
           id: check.dataValues.id,
-          iat: issuedAt,
-          exp: expiresInRefreshToken, // Hết hạn sau 7 ngày theo GMT+7
         },
-        KEY_REFRESH_TOKEN
+        KEY_REFRESH_TOKEN,
+        { expiresIn: '7d' } // Hết hạn sau 7 ngày
       );
 
       return {
         status: 200,
+        success: false, 
+        error: true,
         data: {
           accessToken,
           refreshToken,
           id: check.dataValues.id,
           role: check.dataValues.role,
         },
+        message: "Đăng nhập thành công!",
       };
     } else {
-      return { status: 401, message: "Sai tài khoản hoặc mật khẩu!" };
+      return { status: 401, error: true, success: false, message: "Sai tài khoản hoặc mật khẩu!" };
     }
   } catch (error) {
     console.error("Error login user", error.message);
-    return { status: 500, message: "Internal Server Error" };
+    return { status: 500, error: true, success: false, message: "Internal Server Error" };
   }
 };
 
@@ -80,8 +90,10 @@ const Register = async ({ username, email, password, image }) => {
     if (checkEmail) {
       return {
         status: 401,
+        error: true,
+        success: false,
         field: "email",
-        message: "Email already exists!!!",
+        message: "Email đã tồn tại trong hệ thống!",
       };
     }
 
@@ -90,11 +102,13 @@ const Register = async ({ username, email, password, image }) => {
 
     const user = await User.create({ username, email, password, image });
 
-    const message = "Create user is successfully";
-    return { status: 200, user, message };
+    await sendEmailActiveAccount({email});
+
+    const message = "Đăng ký thành công! Vui lòng kiểm tra email để xác thực.";
+    return { status: 200, error: false, success: true, user, message };
   } catch (error) {
     console.error("Error regiter user", error.message);
-    return { status: 500, message: "Internal Server Error" };
+    return { status: 500, error: true, success: false, message: "Internal Server Error" };
   }
 };
 
@@ -237,6 +251,89 @@ const newPassword = async ({ email, token, password }) => {
   }
 };
 
+const sendEmailActiveAccount = async ({ email}) => {
+  try {
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return { status: 404, error: true, success: false, message: "Người dùng không tồn tại!" };
+    }
+
+    const username = user.username || email; // Sử dụng email nếu không có tên người dùng
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+      },
+      KEY_ACCESS_TOKEN,
+      { expiresIn: '1h' }
+    );
+
+    const transporter = nodemailer.createTransport({
+      service: "Gmail",
+      auth: {
+        user: EMAIL_ADMIN,
+        pass: PASS_ADMIN,
+      },
+    });
+
+    const activeLink = `${URL_CLIENT_BASE}/active-account?token=${token}&email=${email}`;
+
+    const mailOptions = {
+      from: `"Bees Cinema" <${EMAIL_ADMIN}>`,
+      to: email,
+      subject: "Xác thực tài khoản Bees Cinema",
+      html: `
+        <div style="max-width: 500px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; font-family: Arial, sans-serif; background-color: #f9f9f9;">
+          <div style="text-align: center;">
+            <h2 style="color: #ff9900;">🐝 Bees Cinema</h2>
+            <h3 style="color: #333;">Chào mừng, ${username}!</h3>
+          </div>
+          <p style="font-size: 16px; color: #555;">Cảm ơn bạn đã đăng ký tài khoản tại <strong>Bees Cinema</strong>.</p>
+          <p style="font-size: 16px; color: #555;">Vui lòng nhấp vào nút bên dưới để kích hoạt tài khoản của bạn.</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${activeLink}" style="display: inline-block; background-color: #ff9900; color: #fff; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">
+              Kích hoạt tài khoản
+            </a>
+          </div>
+          <p style="font-size: 14px; color: #ff0000; font-weight: bold; text-align: center;">
+            ⚠️ Liên kết xác thực có hiệu lực trong 1 giờ.
+          </p>
+          <p style="font-size: 14px; color: #888;">Nếu bạn không tạo tài khoản tại Bees Cinema, vui lòng bỏ qua email này.</p>
+          <p style="font-size: 14px; color: #888; margin-top: 30px;">Trân trọng,<br/>Đội ngũ Bees Cinema</p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    return { status: 200, success: true, error: false, message: "Email xác thực đã được gửi thành công!" };
+  } catch (error) {
+    console.error("Lỗi gửi email:", error.message);
+    return { status: 500, error: true, success: false, message: "Lỗi máy chủ khi gửi email xác thực!" };
+  }
+};
+
+const activeAccountService = async ({ email, token }) => {
+  try {
+    const decoded = jwt.verify(token, KEY_ACCESS_TOKEN);
+    const user = await User.findOne({ where: { email, id: decoded.id } });
+    if (!user)
+      return { status: 400, error: true, success: false, message: "Token không hợp lệ hoặc đã hết hạn!" };
+
+    if (user.is_active) {
+      return { status: 201, success: true, error: false, message: "Tài khoản đã được kích hoạt trước đó!!" };
+    }
+
+    user.is_active = true;
+    await user.save();
+
+    return { status: 201, success: true, error: false, message: "Tài khoản đã được kích hoạt!" };
+  } catch (error) {
+    console.error("Lỗi gửi email:", error.message);
+    return { status: 500, error: true, success: false, message: error.message };
+  }
+};
+
+
 module.exports = {
   Login,
   Register,
@@ -244,4 +341,6 @@ module.exports = {
   checkEmail,
   sendEmail,
   newPassword,
+  activeAccountService,
+  sendEmailActiveAccount
 };

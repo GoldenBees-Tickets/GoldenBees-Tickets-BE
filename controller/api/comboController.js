@@ -19,9 +19,21 @@ const uploadFolder = "combos";
 class ApiComboController {
   static async index(req, res) {
     try {
-      const combos = await getAllCombos();
-      const message = "Lấy danh sách combo thành công";
-      resData(res, 200, message, combos);
+      // Lấy các tham số phân trang, tìm kiếm và sắp xếp từ request
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const search = req.query.search || '';
+      const sort_order = req.query.sort_order || 'desc';
+      
+      // Gọi service với các tham số
+      const result = await getAllCombos({ page, limit, search, sort_order });
+      
+      // Trả về dữ liệu với thông tin phân trang
+      res.json({
+        message: "Lấy danh sách combo thành công",
+        items: result.items,
+        pagination: result.pagination
+      });
     } catch (error) {
       console.error("Lỗi khi lấy danh sách combo", error.message);
       resErrors(res, 500, error.message || "Lỗi khi lấy danh sách combo");
@@ -95,13 +107,9 @@ class ApiComboController {
     try {
       const { id } = req.params;
 
-      await deleteCombo(id);
+      const result = await deleteCombo(id);
 
-      let combo_id = id;
-      await deleteComboItem(combo_id);
-
-      const message = "Xóa combo và combo items thành công";
-      resData(res, 200, message);
+      res.json(result)
     } catch (error) {
       console.error("Lỗi khi xóa combo hoặc combo items", error.message);
       resErrors(

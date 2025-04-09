@@ -5,6 +5,7 @@ const {
   createMovieWithRelations,
   updateMovieWithRelations,
   deleteMovieWithRelations,
+  updateStatuses,
 } = require("../../service/movieSevice");
 
 const { uploadToCloudinary, deleteFromCloudinary } = require("../../utils/cloudinary");
@@ -14,8 +15,22 @@ const uploadFolder = "movies";
 class ApiMovieController {
   static async index(req, res) {
     try {
-      const movies = await getAllMovies();
-      res.json({ message: "Movies retrieved successfully", movies });
+      // Lấy các tham số phân trang, tìm kiếm, lọc và sắp xếp từ request
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 5;
+      const search = req.query.search || '';
+      const status = req.query.status || '';
+      const sort_order = req.query.sort_order || 'desc';
+      
+      // Gọi service với các tham số
+      const result = await getAllMovies({ page, limit, search, status, sort_order });
+      
+      // Trả về dữ liệu với thông tin phân trang
+      res.json({
+        message: "Movies retrieved successfully",
+        movies: result.movies,
+        pagination: result.pagination
+      });
     } catch (error) {
       console.error("Error fetching movies:", error.message);
       resErrors(res, 500, "Internal Server Error");
@@ -85,10 +100,10 @@ class ApiMovieController {
         director_id,
         year,
         country,
-        selectedActors,
-        selectedGenres,
-        selectedProducers,
-      } = req.body;
+        actor_id,
+        genre_id,
+        producer_id,
+      } = req.body;      
   
       const movie = await getMovie(id);
       if (!movie) {
@@ -111,9 +126,9 @@ class ApiMovieController {
         director_id,
         year,
         country,
-        actor_id: Array.isArray(selectedActors) ? selectedActors.map((actor) => Number(actor.id)) : [],
-        genre_id: Array.isArray(selectedGenres) ? selectedGenres.map((genre) => Number(genre.id)) : [],
-        producer_id: Array.isArray(selectedProducers) ? selectedProducers.map((producer) => Number(producer.id)) : [],
+        actor_id: Array.isArray(actor_id) ? actor_id.map((actor) => Number(actor)) : [],
+        genre_id: Array.isArray(genre_id) ? genre_id.map((genre) => Number(genre)) : [],
+        producer_id: Array.isArray(producer_id) ? producer_id.map((producer) => Number(producer)) : [],
       });
   
       res.json(updatedMovie);
@@ -143,6 +158,16 @@ class ApiMovieController {
       res.json(result);
     } catch (error) {
       console.error("Error deleting movie:", error.message);
+      resErrors(res, 500, "Internal Server Error");
+    }
+  }
+
+  static async updateStatus(req, res) {
+    try {
+     const result = await updateStatuses();
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating movie status:", error.message);
       resErrors(res, 500, "Internal Server Error");
     }
   }

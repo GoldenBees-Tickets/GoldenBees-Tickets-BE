@@ -1,4 +1,4 @@
-const { Login, Register, checkEmail, forgotPassword, newPassword } = require("../../service/authService");
+const { Login, Register, checkEmail, forgotPassword, newPassword, activeAccountService, sendEmailActiveAccount } = require("../../service/authService");
 const { resErrors, resData } = require("../common/common");
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require('google-auth-library');
@@ -123,6 +123,28 @@ class ApiAuthController {
     } catch (error) {
       console.error("Error refreshing token:", error);
       res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+  }
+
+  static async activeAccount(req, res) {
+    try {
+      const { email, token } = req.body;
+      const data = await activeAccountService({ email, token });
+      res.json(data);
+    } catch (error) {
+      console.error("Error active account:", error);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+
+  static async resendActive(req, res) {
+    try {
+      const { email } = req.body;
+      const data = await sendEmailActiveAccount({ email });
+      res.json(data);
+    } catch (error) {
+      console.error("Error resend active account:", error);
+      resErrors(res, 500, error.message || "Internal Server Error");
     }
   }
 }

@@ -9,6 +9,8 @@ router.post("/register", ApiAuthController.create)
 router.post("/resetPass", ApiAuthController.resetPass)
 router.post("/newPass", ApiAuthController.newPassword)
 router.post("/refresh-token", ApiAuthController.refreshToken)
+router.post("/active-account", ApiAuthController.activeAccount)
+router.post("/resend-active", ApiAuthController.resendActive)
 
 
 module.exports = router

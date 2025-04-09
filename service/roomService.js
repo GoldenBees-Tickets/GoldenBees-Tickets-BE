@@ -1,33 +1,68 @@
-const { sequelize, Room, Seat, Cinema, SeatStatus, BlockSeat } = require("../models");
+const {
+  sequelize,
+  Room,
+  Seat,
+  Cinema,
+  SeatStatus,
+  BlockSeat,
+} = require("../models");
 const { Op } = require("sequelize");
 
 // Lấy tất cả các phòng có phân trang
-const getAllRoom = async (page = 1, limit = 10) => {
+const getAllRoom = async (options = {}) => {
   try {
-    const offset = (page - 1) * limit; 
+    const { page = 1, limit = 10, search = "", sort_order = "desc" } = options;
 
-    const { count, rows } = await Room.findAndCountAll({
+    // Tính offset cho phân trang
+    const offset = (page - 1) * limit;
+
+    // Xây dựng điều kiện tìm kiếm
+    let whereClause = {};
+
+    // Tìm kiếm theo tên phòng
+    if (search) {
+      whereClause.name = {
+        [Op.like]: `%${search}%`,
+      };
+    }
+
+    // Đếm tổng số phòng thỏa mãn điều kiện
+    const { count } = await Room.findAndCountAll({
+      where: whereClause,
       include: {
         model: Cinema,
-        attributes: ['name']
+        attributes: ["name"],
       },
-      limit, // Số lượng bản ghi mỗi trang
-      offset, // Bỏ qua số lượng bản ghi trước đó
-      order: [['id', 'DESC']]
+      distinct: true,
     });
 
+    // Lấy danh sách phòng với phân trang và sắp xếp
+    const rooms = await Room.findAll({
+      where: whereClause,
+      include: {
+        model: Cinema,
+        attributes: ["name"],
+      },
+      limit,
+      offset,
+      order: [["name", sort_order.toUpperCase()]],
+    });
+
+    // Trả về dữ liệu kèm thông tin phân trang
     return {
-      totalItems: count, 
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-      rooms: rows
+      rooms,
+      pagination: {
+        total: count,
+        totalPages: Math.ceil(count / limit),
+        currentPage: page,
+        limit,
+      },
     };
   } catch (error) {
     console.error("Error fetching list of rooms:", error.message);
     throw error;
   }
 };
-
 
 // Lấy thông tin phòng theo ID
 // const getRoom = async (id) => {
@@ -45,15 +80,22 @@ const getAllRoom = async (page = 1, limit = 10) => {
 //   }
 // };
 
-const getRoom = async (id) => {
+const getRoom = async ({ id, showtime_id }) => {
   try {
     // Lấy thông tin phòng và danh sách ghế
     const room = await Room.findOne({
       where: { id },
       include: {
         model: Seat,
-        attributes: ["id", "room_id", "seat_number", "seat_row", "is_enabled", "type_id"]
-      }
+        attributes: [
+          "id",
+          "room_id",
+          "seat_number",
+          "seat_row",
+          "is_enabled",
+          "type_id",
+        ],
+      },
     });
 
     if (!room) {
@@ -61,41 +103,42 @@ const getRoom = async (id) => {
     }
 
     // Lấy và log danh sách ID của tất cả ghế trong phòng
-    const seatIds = room.Seats.map(seat => seat.id);
+    const seatIds = room.Seats.map((seat) => seat.id);
 
     // Lấy trạng thái ghế từ SeatStatus (ghế đã đặt)
     const bookedSeats = await SeatStatus.findAll({
-      where: { 
+      where: {
         seat_id: { [Op.in]: seatIds },
-        status: "Booked" 
+        status: "Booked",
+        showtime_id,
       },
-      attributes: ["seat_id"]
+      attributes: ["seat_id"],
     });
 
     // Lấy và log ghế đang giữ chỗ từ BlockSeat
     const blockedSeats = await BlockSeat.findAll({
-      where: { 
+      where: {
         seat_id: { [Op.in]: seatIds },
         expires_at: {
-          [Op.gt]: new Date()
-        }
+          [Op.gt]: new Date(),
+        },
+        showtime_id,
       },
-      attributes: ["seat_id"]
+      attributes: ["seat_id"],
     });
 
-
     // Chuyển danh sách về mảng ID và log
-    const bookedSeatIds = bookedSeats.map(seat => seat.seat_id);
-    const blockedSeatIds = blockedSeats.map(seat => seat.seat_id);
+    const bookedSeatIds = bookedSeats.map((seat) => seat.seat_id);
+    const blockedSeatIds = blockedSeats.map((seat) => seat.seat_id);
 
     // Gắn trạng thái vào từng ghế
-    const seatsWithStatus = room.Seats.map(seat => {
+    const seatsWithStatus = room.Seats.map((seat) => {
       const status = bookedSeatIds.includes(seat.id)
-        ? "Booked"  
+        ? "Booked"
         : blockedSeatIds.includes(seat.id)
-        ? "Blocked"  
+        ? "Blocked"
         : "Available";
-            
+
       return {
         id: seat.id,
         seat_number: seat.seat_number,
@@ -103,7 +146,7 @@ const getRoom = async (id) => {
         room_id: seat.room_id,
         is_enabled: seat.is_enabled,
         type_id: seat.type_id,
-        status
+        status,
       };
     });
 
@@ -111,8 +154,8 @@ const getRoom = async (id) => {
       id: room.id,
       name: room.name,
       columns_count: room.columns_count,
-      Seats: seatsWithStatus
-    }
+      Seats: seatsWithStatus,
+    };
   } catch (error) {
     console.error("Error fetching room:", error.message);
     console.error("Error details:", error);
@@ -120,11 +163,10 @@ const getRoom = async (id) => {
   }
 };
 
-
 const getRoomsByCinemaId = async (cinema_id) => {
   try {
     const room = await Room.findAll({
-      where: { cinema_id }
+      where: { cinema_id },
     });
     return room;
   } catch (error) {
@@ -133,8 +175,13 @@ const getRoomsByCinemaId = async (cinema_id) => {
   }
 };
 
-
-const createRoom = async ({ name, cinema_id, rows_count, columns_count, seats }) => {
+const createRoom = async ({
+  name,
+  cinema_id,
+  rows_count,
+  columns_count,
+  seats,
+}) => {
   const transaction = await sequelize.transaction();
 
   try {
@@ -152,26 +199,22 @@ const createRoom = async ({ name, cinema_id, rows_count, columns_count, seats })
         type_id: seat.type_id,
       }));
 
-      await Seat.bulkCreate(seatData, { transaction }); 
+      await Seat.bulkCreate(seatData, { transaction });
     }
 
-    await transaction.commit(); 
+    await transaction.commit();
     return room;
   } catch (error) {
-    await transaction.rollback(); 
+    await transaction.rollback();
     console.error("Error creating room:", error.message);
     throw error;
   }
 };
 
-
 // Cập nhật thông tin phòng
 const updateRoom = async ({ id, name }) => {
   try {
-    const result = await Room.update(
-      { name },
-      { where: { id } }
-    );
+    const result = await Room.update({ name }, { where: { id } });
     return result;
   } catch (error) {
     console.error("Error updating room:", error.message);
@@ -196,5 +239,5 @@ module.exports = {
   createRoom,
   updateRoom,
   deleteRoom,
-  getRoomsByCinemaId
+  getRoomsByCinemaId,
 };

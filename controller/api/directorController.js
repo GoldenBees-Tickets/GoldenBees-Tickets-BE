@@ -10,8 +10,22 @@ const uploadFolder = 'directors';
 class ApiDirectorController {
     static async index(req, res) {
         try {
-            const directors = await getAllDirectors();
-            res.json({ message: "Get directors successfully", directors });
+            // Lấy các tham số phân trang, tìm kiếm, lọc và sắp xếp từ request
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 5;
+            const search = req.query.search || '';
+            const gender = req.query.gender || '';
+            const sort_order = req.query.sort_order || 'desc';
+            
+            // Gọi service với các tham số
+            const result = await getAllDirectors({ page, limit, search, gender, sort_order });
+            
+            // Trả về dữ liệu với thông tin phân trang
+            res.json({
+                message: "Get directors successfully",
+                directors: result.directors,
+                pagination: result.pagination
+            });
         } catch (error) {
             console.error("Error fetching directors:", error.message);
             resErrors(res, 500, "Internal Server Error");
