@@ -11,6 +11,7 @@ const EMAIL_ADMIN = process.env.EMAIL_ADMIN;
 const PASS_ADMIN = process.env.PASS_ADMIN;
 const URL_CLIENT_BASE = process.env.URL_CLIENT_BASE || "http://localhost:5173";
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
+const NODEMAILER_DEBUG = process.env.NODEMAILER_DEBUG === 'true';
 
 // Hàm gửi email với mã QR
 const sendQRCodeEmail = async ({
@@ -23,7 +24,51 @@ const sendQRCodeEmail = async ({
   total,
 }) => {
 
+  console.log("-------------------------------------------------");
+  
+  console.log("data send mail", movieName, showtime, total);
+  
   try {
+    // Format lại showtime để hiển thị đúng
+    let formattedShowtime = showtime;
+    
+    // Kiểm tra xem showtime có định dạng "HH:MM:SS YYYY-MM-DD" không
+    if (typeof showtime === 'string' && showtime.includes(':') && showtime.includes('-')) {
+      // Tách thời gian và ngày
+      const parts = showtime.split(' ');
+      if (parts.length === 2) {
+        const timePart = parts[0]; // "20:00:00"
+        const datePart = parts[1]; // "2025-04-12"
+        
+        // Tạo chuỗi định dạng hợp lệ cho Date: "YYYY-MM-DDThh:mm:ss"
+        const isoDateString = `${datePart}T${timePart}`;
+        
+        try {
+          // Tạo đối tượng Date và định dạng lại theo múi giờ Việt Nam
+          const date = new Date(isoDateString);
+          if (!isNaN(date.getTime())) {
+            formattedShowtime = date.toLocaleString('vi-VN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            console.log('Formatted showtime:', formattedShowtime);
+          } else {
+            console.warn('Không thể chuyển đổi showtime thành Date:', showtime);
+            // Fallback: Hiển thị dưới dạng text đẹp hơn
+            formattedShowtime = `${timePart.substring(0, 5)} ngày ${datePart.split('-').reverse().join('/')}`;
+          }
+        } catch (dateError) {
+          console.error('Lỗi khi định dạng ngày:', dateError);
+          // Fallback: Hiển thị dưới dạng text nếu lỗi
+          formattedShowtime = `${timePart.substring(0, 5)} ngày ${datePart.split('-').reverse().join('/')}`;
+        }
+      }
+    }
+
     // Tạo mã QR dạng Base64 để nhúng trực tiếp vào email
     const qrCodeDataUri = await QRCode.toDataURL(orderId.toString(), {
       color: {
@@ -39,12 +84,23 @@ const sendQRCodeEmail = async ({
         ? seatDatas.map((item) => item.seat_row + item.seat_number).join(", ")
         : "Chưa có ghế";
 
-    const transporter = nodemailer.createTransport({
+    // Kiểm tra thông tin email trước khi cấu hình
+    console.log(`SMTP Configuration - EMAIL_ADMIN: ${EMAIL_ADMIN ? 'configured' : 'missing'}, PASS_ADMIN: ${PASS_ADMIN ? 'configured' : 'missing'}`);
+
+    const transportConfig = {
       service: "Gmail",
       auth: { user: EMAIL_ADMIN, pass: PASS_ADMIN },
       tls: { rejectUnauthorized: false },
       secureConnection: false,
-    });
+    };
+    
+    // Thêm cài đặt debug nếu được bật
+    if (NODEMAILER_DEBUG) {
+      transportConfig.debug = true;
+      transportConfig.logger = true;
+    }
+    
+    const transporter = nodemailer.createTransport(transportConfig);
 
     // Xử lý đường dẫn QR code
     const qrFilePath = path.join(
@@ -79,9 +135,7 @@ const sendQRCodeEmail = async ({
                             </tr>
                             <tr>
                                 <td style="padding: 8px 0; font-weight: bold; border-top: 1px dotted #333;">Suất chiếu:</td>
-                                <td style="padding: 8px 0; border-top: 1px dotted #333;">${new Date(
-                                  showtime
-                                ).toLocaleString("vi-VN")}</td>
+                                <td style="padding: 8px 0; border-top: 1px dotted #333;">${formattedShowtime}</td>
                             </tr>
                             <tr>
                                 <td style="padding: 8px 0; font-weight: bold; border-top: 1px dotted #333;">Ghế:</td>
@@ -93,9 +147,7 @@ const sendQRCodeEmail = async ({
                             </tr>
                             <tr>
                                 <td style="padding: 8px 0; font-weight: bold; border-top: 1px dotted #333;">Giá:</td>
-                                <td style="padding: 8px 0; border-top: 1px dotted #333;">${total.toLocaleString(
-                                  "vi-VN"
-                                )} VND</td>
+                                <td style="padding: 8px 0; border-top: 1px dotted #333;">${Number(total).toLocaleString("vi-VN")} VND</td>
                             </tr>
                         </table>
                     </div>
@@ -150,6 +202,21 @@ const sendQRCodeEmail = async ({
 
     const info = await transporter.sendMail(mailOptions);
 
+    // Thêm log để debug
+    console.log("Email đã được gửi thành công:", info.messageId);
+    
+    // Ghi log vào file
+    const logMessage = `${new Date().toISOString()} - Email sent successfully to ${email} for order ${orderId} - MessageID: ${info.messageId}\n`;
+    try {
+      const logDir = path.join(__dirname, "../logs");
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+      fs.appendFileSync(path.join(logDir, "nodemailer.log"), logMessage);
+    } catch (logError) {
+      console.error("Không thể ghi log email:", logError);
+    }
+
     return {
       success: true,
       message: "Email đã được gửi thành công!",
@@ -158,6 +225,29 @@ const sendQRCodeEmail = async ({
   } catch (error) {
     console.error("Lỗi gửi email mã QR:", error.message);
     console.error("Chi tiết lỗi:", error);
+    
+    // In thêm thông tin để debug
+    console.error(`Thông tin gửi email bị lỗi:
+      - Email: ${email || 'không có'}
+      - OrderId: ${orderId || 'không có'}
+      - MovieName: ${movieName || 'không có'}
+      - ShowTime: ${showtime || 'không có'}
+      - QR URL: ${qrUrl || 'không có'}
+      - SeatDatas: ${seatDatas ? JSON.stringify(seatDatas) : 'không có'}
+    `);
+    
+    // Ghi log lỗi vào file
+    const errorLogMessage = `${new Date().toISOString()} - ERROR sending email to ${email} for order ${orderId} - ${error.message}\n${error.stack || 'No stack trace'}\n---\n`;
+    try {
+      const logDir = path.join(__dirname, "../logs");
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+      fs.appendFileSync(path.join(logDir, "nodemailer-errors.log"), errorLogMessage);
+    } catch (logError) {
+      console.error("Không thể ghi log lỗi email:", logError);
+    }
+    
     return {
       success: false,
       message: "Lỗi gửi email: " + error.message,

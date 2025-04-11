@@ -128,8 +128,11 @@ const payWithMoMo = async (data) => {
       promotion_id,
       orderInfo = "Thanh toán vé xem phim",
     } = data;
-    showtime_id = showtime_id.id;
-
+    showtime_id = showtime_id;
+    console.log("---------------------------------");
+    
+    console.log("showtime_id", showtime_id);
+    
     // Tạo thông tin đơn hàng
     const order = await Order.create({ user_id, total, showtime_id });
 
@@ -175,13 +178,11 @@ const payWithMoMo = async (data) => {
     }
     await transaction.commit();
     // Tạo extraData (mã hóa booking_id, user_id, showtime_id để sau này sử dụng)
-    // const extraData = Buffer.from(JSON.stringify({
-    //     order_id,
-    //     user_id,
-    //     showtime_id
-    // })).toString('base64');
-
-    const extraData = ""; // Nếu không cần gửi dữ liệu thêm, để trống
+    const extraData = Buffer.from(JSON.stringify({
+        order_id,
+        user_id,
+        showtime_id
+    })).toString('base64');
 
     const requestType = "payWithMethod";
     const autoCapture = true;
@@ -313,6 +314,16 @@ const handleCallback = async (callbackData) => {
       };
     }
 
+    // Kiểm tra xem đơn hàng đã được xử lý chưa
+    if (order.status === "paid") {
+      console.log(`Order ${orderId} has already been processed as PAID`);
+      return {
+        success: true,
+        message: "Order already processed",
+        alreadyProcessed: true
+      };
+    }
+
     // Giải mã extraData nếu có
     let extraDataObj = {};
     if (extraData) {
@@ -398,9 +409,17 @@ const handleCallback = async (callbackData) => {
 
         // Tạo mã QR cho vé
         const email = userData?.email;
+        const showDate = showtimeData?.show_date || '';
+        const startTime = showtimeData?.start_time || '';
+        
+        // Tạo string định dạng ngày giờ hợp lệ
+        const formattedShowtime = startTime + ' ' + showDate;
+        
+        console.log('Sending showtime to QR generator:', formattedShowtime);
+        
         const createQrCode = await generateQRCode({
           movieName: movieData.name,
-          showtime: showtimeData.start_time,
+          showtime: formattedShowtime,
           seatDatas,
           orderId,
           total: order.total,
@@ -409,6 +428,18 @@ const handleCallback = async (callbackData) => {
         });
 
         console.log('Payment successful, QR code generated:', !!createQrCode);
+        
+        // Thêm log email
+        if (createQrCode?.emailResult) {
+          if (createQrCode.emailResult.success) {
+            console.log(`Email ticket đã được gửi thành công đến ${email} cho đơn hàng ${orderId}`);
+          } else {
+            console.error(`Không thể gửi email ticket đến ${email} cho đơn hàng ${orderId}:`, 
+                          createQrCode.emailResult.message || 'Unknown error');
+          }
+        } else {
+          console.warn(`Không có kết quả email cho đơn hàng ${orderId}`);
+        }
 
         return {
           success: true,

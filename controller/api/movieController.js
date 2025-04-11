@@ -6,6 +6,7 @@ const {
   updateMovieWithRelations,
   deleteMovieWithRelations,
   updateStatuses,
+  getAllMoviesWithValidShowtimes,
 } = require("../../service/movieSevice");
 
 const { uploadToCloudinary, deleteFromCloudinary } = require("../../utils/cloudinary");
@@ -15,21 +16,20 @@ const uploadFolder = "movies";
 class ApiMovieController {
   static async index(req, res) {
     try {
-      // Lấy các tham số phân trang, tìm kiếm, lọc và sắp xếp từ request
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 5;
-      const search = req.query.search || '';
-      const status = req.query.status || '';
-      const sort_order = req.query.sort_order || 'desc';
+      // Sử dụng getAllMoviesWithValidShowtimes để chỉ lấy phim có xuất chiếu hợp lệ
+      const movies = await getAllMoviesWithValidShowtimes();
       
-      // Gọi service với các tham số
-      const result = await getAllMovies({ page, limit, search, status, sort_order });
+      // Kiểm tra một lần nữa và lọc ra các phim có xuất chiếu hợp lệ
+      const validMovies = movies.filter(movie => 
+        movie.Showtimes && movie.Showtimes.length > 0
+      );
       
-      // Trả về dữ liệu với thông tin phân trang
+      console.log(`API trả về ${validMovies.length}/${movies.length} phim có xuất chiếu hợp lệ`);
+      
+      // Trả về dữ liệu phim đã lọc
       res.json({
-        message: "Movies retrieved successfully",
-        movies: result.movies,
-        pagination: result.pagination
+        message: "Movies with valid showtimes retrieved successfully",
+        movies: validMovies
       });
     } catch (error) {
       console.error("Error fetching movies:", error.message);
@@ -168,6 +168,50 @@ class ApiMovieController {
       res.json(result);
     } catch (error) {
       console.error("Error updating movie status:", error.message);
+      resErrors(res, 500, "Internal Server Error");
+    }
+  }
+
+  static async getMoviesWithValidShowtimes(req, res) {
+    try {
+      // Lấy phim có xuất chiếu hợp lệ
+      const movies = await getAllMoviesWithValidShowtimes();
+      
+      // Kiểm tra một lần nữa và lọc ra các phim có xuất chiếu hợp lệ
+      const validMovies = movies.filter(movie => 
+        movie.Showtimes && movie.Showtimes.length > 0
+      );
+      
+      console.log(`API getMoviesWithValidShowtimes trả về ${validMovies.length}/${movies.length} phim có xuất chiếu hợp lệ`);
+      
+      res.json({
+        message: "Movies with valid showtimes retrieved successfully",
+        movies: validMovies
+      });
+    } catch (error) {
+      console.error("Error fetching movies with valid showtimes:", error.message);
+      resErrors(res, 500, "Internal Server Error");
+    }
+  }
+
+  static async getAllMovies(req, res) {
+    try {
+      // Sử dụng getAllMoviesWithValidShowtimes để lấy phim có xuất chiếu hợp lệ
+      const movies = await getAllMoviesWithValidShowtimes();
+
+      // Kiểm tra một lần nữa và lọc ra các phim có xuất chiếu hợp lệ
+      const validMovies = movies.filter(movie => 
+        movie.Showtimes && movie.Showtimes.length > 0
+      );
+      
+      console.log(`API getAllMovies trả về ${validMovies.length}/${movies.length} phim có xuất chiếu hợp lệ`);
+      
+      res.json({
+        message: "Movies retrieved successfully",
+        movies: validMovies
+      });
+    } catch (error) {
+      console.error("Error fetching movies:", error.message);
       resErrors(res, 500, "Internal Server Error");
     }
   }
