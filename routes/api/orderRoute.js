@@ -7,6 +7,7 @@ const AuthorizationAdmin = require("../../middleware/authorizationAdmin");
 
 router.post("/pay-with-momo", ApiOrderontroller.payWithMoMo);
 router.post("/callback", ApiOrderontroller.handleCallback);
+router.post("/client-callback", ApiOrderontroller.handleClientCallback);
 router.get("/status/:orderId", ApiOrderontroller.checkPaymentStatus);
 
 router.get("/:id", ApiOrderDataController.getOrderByUserId);

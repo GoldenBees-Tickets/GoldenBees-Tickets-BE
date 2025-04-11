@@ -8,11 +8,14 @@ const {
   Actor,
   MovieProducer,
   Producer,
-  Showtime
+  Showtime,
+  Room,
+  Cinema
 } = require("../models");
 const { createMovieActor, deleteMovieActor } = require("./movieActorService");
 const { createMovieGenre, deleteMovieGenre } = require("./movieGenreService");
 const { createMovieProducer, deleteMovieProducer } = require("./movieProducerService");
+const moment = require('moment-timezone');
 
 const getMovie = async (id) => {
   try {
@@ -42,7 +45,7 @@ const getMovie = async (id) => {
 
 const getAllMovies = async (options = {}) => {
   try {
-    const { page = 1, limit = 5, search = '', status = '', sort_order = 'desc' } = options;
+    const { page = 1, limit = 5, search = '', sort_order = 'desc' } = options;
     
     // Tính toán offset cho phân trang
     const offset = (page - 1) * limit;
@@ -55,11 +58,6 @@ const getAllMovies = async (options = {}) => {
       whereClause.name = {
         [Op.like]: `%${search}%`
       };
-    }
-    
-    // Lọc theo trạng thái
-    if (status) {
-      whereClause.status = status;
     }
     
     // Đếm tổng số phim thỏa mãn điều kiện (không sử dụng include)
@@ -326,6 +324,82 @@ async function updateStatuses() {
   }
 }
 
+const getAllMoviesWithValidShowtimes = async () => {
+  try {
+    // Lấy thời gian hiện tại
+    const now = moment().tz('Asia/Ho_Chi_Minh');
+    const todayStr = now.format("YYYY-MM-DD");
+    const currentTime = now.format("HH:mm:ss");
+    
+    console.log(`Lọc phim có xuất chiếu hợp lệ - Ngày hiện tại: ${todayStr}, Giờ hiện tại: ${currentTime}`);
+    
+    // Lấy tất cả phim cùng với các xuất chiếu hợp lệ của chúng
+    const movies = await Movie.findAll({
+      include: [
+        {
+          model: MovieGenre,
+          include: [{ model: Genre }],
+          required: false
+        },
+        { 
+          model: Director,
+          required: false
+        },
+        {
+          model: MovieActor,
+          include: [{ model: Actor }],
+          required: false
+        },
+        {
+          model: MovieProducer,
+          include: [{ model: Producer }],
+          required: false
+        },
+        {
+          model: Showtime,
+          where: {
+            [Op.or]: [
+              {
+                // Các ngày trong tương lai
+                show_date: {
+                  [Op.gt]: todayStr
+                }
+              },
+              {
+                // Ngày hiện tại nhưng giờ chiếu phải lớn hơn giờ hiện tại
+                [Op.and]: [
+                  { show_date: todayStr },
+                  { start_time: { [Op.gt]: currentTime } }
+                ]
+              }
+            ]
+          },
+          include: [
+            {
+              model: Room,
+              include: [{ model: Cinema }],
+              required: true
+            }
+          ],
+          required: true // Bắt buộc phải có ít nhất một xuất chiếu hợp lệ
+        }
+      ],
+      distinct: true // Đảm bảo không trùng lặp phim
+    });
+    
+    // Thêm một lần kiểm tra để chắc chắn phim có xuất chiếu hợp lệ
+    const filteredMovies = movies.filter(movie => {
+      return movie.Showtimes && movie.Showtimes.length > 0;
+    });
+    
+    console.log(`Tìm thấy ${filteredMovies.length} phim có xuất chiếu hợp lệ từ tổng số ${movies.length} phim`);
+    
+    return filteredMovies;
+  } catch (error) {
+    console.error("Error fetching movies with valid showtimes:", error.message);
+    throw error;
+  }
+};
 
 module.exports = {
   getAllMovies,
@@ -333,5 +407,6 @@ module.exports = {
   createMovieWithRelations,
   updateMovieWithRelations,
   deleteMovieWithRelations,
-  updateStatuses
+  updateStatuses,
+  getAllMoviesWithValidShowtimes
 };

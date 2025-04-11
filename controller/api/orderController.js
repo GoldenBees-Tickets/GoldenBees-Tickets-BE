@@ -59,9 +59,55 @@ const sendMoMoRequest = (requestBody) => {
 // Controller thanh toán với MOMO
 exports.payWithMoMo = async (req, res) => {
     try {
-        const data = req.body;        
+        const data = req.body;
+        console.log('Received payment request data:', JSON.stringify(data, null, 2));
+        
+        // Kiểm tra dữ liệu đầu vào chi tiết
+        if (!data.user_id) {
+            console.error('Missing user_id in payment request');
+            return res.status(400).json({
+                error: 'Dữ liệu thanh toán không đầy đủ',
+                message: 'Không tìm thấy thông tin người dùng'
+            });
+        }
+
+        if (!data.total || !data.amount) {
+            console.error('Missing total or amount in payment request');
+            return res.status(400).json({
+                error: 'Dữ liệu thanh toán không đầy đủ',
+                message: 'Không tìm thấy thông tin số tiền thanh toán'
+            });
+        }
+
+        if (!data.seat_ids || !Array.isArray(data.seat_ids) || data.seat_ids.length === 0) {
+            console.error('Missing or invalid seat_ids in payment request');
+            return res.status(400).json({
+                error: 'Dữ liệu thanh toán không đầy đủ',
+                message: 'Không tìm thấy thông tin ghế đã chọn'
+            });
+        }
+
+        if (!data.showtime_id) {
+            console.error('Missing showtime_id in payment request');
+            return res.status(400).json({
+                error: 'Dữ liệu thanh toán không đầy đủ',
+                message: 'Không tìm thấy thông tin suất chiếu'
+            });
+        }
+
+        // Chuẩn bị dữ liệu trước khi gửi đến service
+        const preparedData = {
+            ...data,
+            // Xử lý showtime_id để đảm bảo là một ID đơn giản
+            showtime_id: typeof data.showtime_id === 'object' ? data.showtime_id.id : data.showtime_id,
+            orderInfo: data.orderInfo || `Thanh toán vé xem phim`
+        };
+        
+        console.log('Prepared data for payment service:', JSON.stringify(preparedData, null, 2));
+
         // Gọi service để xử lý thanh toán
-        const result = await orderService.payWithMoMo(data);
+        const result = await orderService.payWithMoMo(preparedData);
+        console.log('Payment service result:', JSON.stringify(result, null, 2));
         
         if (result.success) {
             res.json(result.data);
@@ -100,14 +146,32 @@ exports.handleCallback = async (req, res) => {
 
         console.log('MOMO IPN Callback received:', req.body);
         
+        // Thêm debug log cho việc gọi service handleCallback
+        console.log('Calling orderService.handleCallback with orderId:', orderId);
+        
         // Chuyển dữ liệu callback từ MoMo đến service
         const result = await orderService.handleCallback(req.body);
+        
+        // Log kết quả xử lý từ service
+        console.log('orderService.handleCallback result:', JSON.stringify(result, null, 2));
         
         // Nếu thanh toán thành công, tạo mã QR
         if (resultCode === '0' || resultCode === 0) {
             console.log('Payment successful, creating QR code');
             
             // Order đã được cập nhật trong orderService.handleCallback
+            
+            // Kiểm tra kết quả gửi email
+            if (result.sendEmail) {
+                if (result.sendEmail.emailResult && result.sendEmail.emailResult.success) {
+                    console.log('Email with QR code sent successfully');
+                } else {
+                    console.error('Failed to send email with QR code:', 
+                        result.sendEmail.emailResult ? result.sendEmail.emailResult.message : 'Unknown error');
+                }
+            } else {
+                console.warn('No email sending result found in callback response');
+            }
             
             // Có thể thêm webhook để thông báo cho client biết về thanh toán thành công
             // Ví dụ: gửi socket hoặc thông báo push
@@ -217,6 +281,58 @@ exports.checkPaymentStatus = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Lỗi khi kiểm tra trạng thái thanh toán',
+            error: error.message
+        });
+    }
+};
+
+// Xử lý callback từ client sau khi thanh toán MoMo
+exports.handleClientCallback = async (req, res) => {
+    try {
+        const {
+            orderId,
+            resultCode,
+            message,
+            extraData
+        } = req.body;
+
+        console.log('Client callback received for order:', orderId);
+        console.log('Payment result code:', resultCode);
+        
+        if (!orderId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Thiếu thông tin đơn hàng',
+                error: 'Missing orderId'
+            });
+        }
+
+        // Xử lý trường hợp MoMo không gửi callback webhook
+        // Chuyển dữ liệu đến service để xử lý
+        const callbackData = {
+            orderId,
+            resultCode,
+            message,
+            extraData
+        };
+        
+        const result = await orderService.handleCallback(callbackData);
+        
+        console.log('Client callback processing result:', JSON.stringify(result, null, 2));
+        
+        res.status(200).json({
+            success: result.success,
+            message: result.message || 'Đã xử lý',
+            data: {
+                orderId,
+                status: result.success ? 'success' : 'error'
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi khi xử lý client callback:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Có lỗi xảy ra khi xử lý callback',
             error: error.message
         });
     }
