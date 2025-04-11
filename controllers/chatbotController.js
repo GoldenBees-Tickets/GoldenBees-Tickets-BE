@@ -5,7 +5,10 @@ const { getAllRoom } = require("../service/roomService");
 const { getAllSeat } = require("../service/seatService");
 const { getAllCombos } = require("../service/comboService");
 const { getAllSeatType } = require("../service/seatTypeService");
-const { getShowtimesByMovieId, getShowtimeById } = require("../service/showtimeService");
+const {
+  getShowtimeById,
+  getShowtimesByMovieIdForChat,
+} = require("../service/showtimeService");
 require("dotenv").config();
 
 // Lấy API key từ biến môi trường
@@ -30,31 +33,32 @@ const getShowtimePrice = async (showtimeId) => {
     // Lấy dữ liệu song song để tăng hiệu suất
     const [showtimeResult, seatTypes] = await Promise.all([
       getShowtimeById(showtimeId),
-      getSeatTypes()
+      getSeatTypes(),
     ]);
-    
+
     // Xử lý cấu trúc kết quả từ API
     if (!showtimeResult || showtimeResult.status !== 200) {
       return {
         success: false,
-        message: showtimeResult?.message || "Không tìm thấy thông tin suất chiếu"
+        message:
+          showtimeResult?.message || "Không tìm thấy thông tin suất chiếu",
       };
     }
-    
+
     const showtimeData = showtimeResult.showtime || {};
     const basePrice = Number(showtimeData.base_price) || 0;
-      
+
     // Tạo thông tin về các loại ghế và giá
-    const seatPrices = seatTypes.map(seatType => ({
+    const seatPrices = seatTypes.map((seatType) => ({
       type: seatType.type,
       price: basePrice + Number(seatType.price_offset),
-      color: seatType.color
+      color: seatType.color,
     }));
-    
+
     // Destructuring để lấy dữ liệu từ showtime
     const { id, start_time = {}, room = {}, movie = {} } = showtimeData;
     const cinema = room.cinema || {};
-    
+
     return {
       success: true,
       base_price: String(basePrice),
@@ -65,14 +69,17 @@ const getShowtimePrice = async (showtimeId) => {
         start_time: start_time || { dayOfWeek: "", date: "", time: "" },
         room: room.name || "Không xác định",
         cinema: cinema.name || "Không xác định",
-        movie: movie.name || "Không xác định"
-      }
+        movie: movie.name || "Không xác định",
+      },
     };
   } catch (error) {
-    console.error(`Error fetching showtime price for ID ${showtimeId}:`, error.message);
+    console.error(
+      `Error fetching showtime price for ID ${showtimeId}:`,
+      error.message
+    );
     return {
       success: false,
-      message: "Lỗi khi lấy thông tin giá vé: " + error.message
+      message: "Lỗi khi lấy thông tin giá vé: " + error.message,
     };
   }
 };
@@ -81,24 +88,28 @@ const getShowtimePrice = async (showtimeId) => {
 const getSeatTypes = async () => {
   // Sử dụng cache nếu còn hạn
   const now = Date.now();
-  if (seatTypeCache && seatTypeCacheTime && (now - seatTypeCacheTime < CACHE_DURATION)) {
+  if (
+    seatTypeCache &&
+    seatTypeCacheTime &&
+    now - seatTypeCacheTime < CACHE_DURATION
+  ) {
     return seatTypeCache;
   }
-  
+
   // Lấy thông tin mới nếu cache hết hạn hoặc chưa có cache
   try {
     const seatTypes = await getAllSeatType();
-    const formattedSeatTypes = seatTypes.map(type => ({
+    const formattedSeatTypes = seatTypes.map((type) => ({
       id: type.id,
       type: type.type,
       color: type.color,
-      price_offset: Number(type.price_offset)
+      price_offset: Number(type.price_offset),
     }));
-    
+
     // Cập nhật cache
     seatTypeCache = formattedSeatTypes;
     seatTypeCacheTime = now;
-    
+
     return formattedSeatTypes;
   } catch (error) {
     console.error("Error fetching seat types:", error.message);
@@ -123,7 +134,7 @@ exports.generateResponse = async (req, res) => {
     const cinemas = await getAllCinemas();
 
     // Chuyển đổi dữ liệu cinema vào định dạng phù hợp
-    const cinemaData = cinemas.map((cinema) => ({
+    const cinemaData = cinemas?.cinemas.map((cinema) => ({
       id: cinema.dataValues.id,
       name: cinema.dataValues.name,
       city: cinema.dataValues.city,
@@ -136,7 +147,7 @@ exports.generateResponse = async (req, res) => {
     const movies = await getAllMovies();
 
     // Chuyển đổi dữ liệu movie vào định dạng phù hợp
-    const movieData = movies.map((movie) => ({
+    const movieData = movies?.movies.map((movie) => ({
       id: movie.id,
       name: movie.name,
       description: movie.description,
@@ -189,24 +200,23 @@ exports.generateResponse = async (req, res) => {
     // Lấy dữ liệu ghế từ database
     // Cấu trúc sẽ là { roomId: { roomName: string, seats: [] } }
     const seatsByRoom = {};
-    
+
     // Lấy thông tin loại ghế từ database
     const seatTypes = await getAllSeatType();
-   
-    
-    const seatTypesList = seatTypes.map(type => ({
+
+    const seatTypesList = seatTypes.map((type) => ({
       id: type.id,
       type: type.type,
       color: type.color,
-      price_offset: Number(type.price_offset)
+      price_offset: Number(type.price_offset),
     }));
-    
+
     // Tạo map để truy cập nhanh thông tin loại ghế
     const seatTypeMap = {};
-    seatTypesList.forEach(type => {
+    seatTypesList.forEach((type) => {
       seatTypeMap[type.id] = type;
     });
-    
+
     // Chỉ lấy ghế từ tối đa 5 phòng đầu tiên để tránh quá nhiều dữ liệu
     if (roomData && roomData.length > 0) {
       for (let i = 0; i < Math.min(5, roomData.length); i++) {
@@ -217,11 +227,11 @@ exports.generateResponse = async (req, res) => {
           const seatList = seats.map((seat) => {
             // Lấy thông tin loại ghế
             const seatType = seatTypeMap[seat.type_id] || {
-              type: 'Không xác định',
-              color: '#CCCCCC',
-              price_offset: 0
+              type: "Không xác định",
+              color: "#CCCCCC",
+              price_offset: 0,
             };
-            
+
             return {
               id: seat.id,
               roomId: seat.room_id,
@@ -231,17 +241,17 @@ exports.generateResponse = async (req, res) => {
               typeId: seat.type_id,
               type: seatType.type,
               color: seatType.color,
-              price_offset: seatType.price_offset
+              price_offset: seatType.price_offset,
             };
           });
-          
+
           // Lưu thông tin ghế theo phòng
           seatsByRoom[room.id] = {
             roomName: room.name,
             cinemaName: room.cinema ? room.cinema.name : "Không có thông tin",
             totalSeats: seatList.length,
             seats: seatList,
-            seatTypes: seatTypesList
+            seatTypes: seatTypesList,
           };
         } catch (error) {
           console.error(
@@ -254,28 +264,32 @@ exports.generateResponse = async (req, res) => {
 
     // Lấy dữ liệu combo từ database
     const combos = await getAllCombos();
-    
+
     // Chuyển đổi dữ liệu combo vào định dạng phù hợp
-    const comboData = combos.map(combo => {
-      const items = combo.ComboItems ? combo.ComboItems.map(item => ({
-        id: item.id,
-        quantity: item.quantity,
-        product: item.FoodAndDrink ? {
-          id: item.FoodAndDrink.id,
-          name: item.FoodAndDrink.name,
-          description: item.FoodAndDrink.description,
-          price: item.FoodAndDrink.price,
-          type: item.FoodAndDrink.type,
-          image: item.FoodAndDrink.image
-        } : null
-      })) : [];
-      
+    const comboData = combos?.items.map((combo) => {
+      const items = combo.ComboItems
+        ? combo.ComboItems.map((item) => ({
+            id: item.id,
+            quantity: item.quantity,
+            product: item.FoodAndDrink
+              ? {
+                  id: item.FoodAndDrink.id,
+                  name: item.FoodAndDrink.name,
+                  description: item.FoodAndDrink.description,
+                  price: item.FoodAndDrink.price,
+                  type: item.FoodAndDrink.type,
+                  image: item.FoodAndDrink.image,
+                }
+              : null,
+          }))
+        : [];
+
       return {
         id: combo.id,
         name: combo.name,
         price: combo.price,
         profilePicture: combo.profile_picture,
-        items: items
+        items: items,
       };
     });
 
@@ -361,39 +375,40 @@ exports.generateResponse = async (req, res) => {
 exports.getTicketPrice = async (req, res) => {
   try {
     const { showtime_id } = req.params;
-    
+
     if (!showtime_id) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu ID suất chiếu"
+        message: "Thiếu ID suất chiếu",
       });
     }
-    
+
     const priceInfo = await getShowtimePrice(showtime_id);
-    
+
     if (!priceInfo.success) {
       return res.status(404).json({
         success: false,
-        message: priceInfo.message || "Không tìm thấy thông tin giá vé"
+        message: priceInfo.message || "Không tìm thấy thông tin giá vé",
       });
     }
-    
+
     // Format dữ liệu trả về
     const formattedData = {
       base_price: priceInfo.base_price,
-      formatted_price: Number(priceInfo.base_price).toLocaleString('vi-VN') + " đồng",
-      seat_prices: priceInfo.seat_prices.map(sp => ({
+      formatted_price:
+        Number(priceInfo.base_price).toLocaleString("vi-VN") + " đồng",
+      seat_prices: priceInfo.seat_prices.map((sp) => ({
         ...sp,
-        formatted_price: Number(sp.price).toLocaleString('vi-VN') + " đồng"
+        formatted_price: Number(sp.price).toLocaleString("vi-VN") + " đồng",
       })),
       seat_types: priceInfo.seat_types,
-      showtime: priceInfo.showtime
+      showtime: priceInfo.showtime,
     };
-    
+
     return res.status(200).json({
       success: true,
       message: "Lấy thông tin giá vé thành công",
-      data: formattedData
+      data: formattedData,
     });
   } catch (error) {
     return handleApiError(res, error, "Có lỗi xảy ra khi lấy thông tin giá vé");
@@ -404,25 +419,29 @@ exports.getTicketPrice = async (req, res) => {
 exports.getAllSeatTypes = async (req, res) => {
   try {
     const seatTypes = await getSeatTypes();
-    
+
     return res.json({
       success: true,
       message: "Get seat types successfully",
-      seatTypes
+      seatTypes,
     });
   } catch (error) {
-    return handleApiError(res, error, "Có lỗi xảy ra khi lấy thông tin loại ghế");
+    return handleApiError(
+      res,
+      error,
+      "Có lỗi xảy ra khi lấy thông tin loại ghế"
+    );
   }
 };
 
 // Helper function để xử lý lỗi API một cách nhất quán
 const handleApiError = (res, error, message) => {
   console.error(message + ":", error);
-  
+
   return res.status(500).json({
     success: false,
     message: message,
-    error: process.env.NODE_ENV === "development" ? error.message : undefined
+    error: process.env.NODE_ENV === "development" ? error.message : undefined,
   });
 };
 
@@ -471,22 +490,28 @@ Thành phố: ${cinema.city}
   const movieInfoPromises = movieData.map(async (movie) => {
     const genres = movie.genres.map((g) => g.name).join(", ");
     const actors = movie.actors.map((a) => a.name).join(", ");
-    
+
     // Lấy thông tin suất chiếu cho phim này
     let showtimeInfo = "";
     try {
-      const showtimeResult = await getShowtimesByMovieId(movie.id);
-   
-      
-      if (showtimeResult && showtimeResult.status === 200 && showtimeResult.data && showtimeResult.data.length > 0) {
+      const showtimeResult = await getShowtimesByMovieIdForChat({
+        movie_id: movie.id,
+      });
+
+      if (
+        showtimeResult &&
+        showtimeResult.status === 200 &&
+        showtimeResult.data &&
+        showtimeResult.data.length > 0
+      ) {
         showtimeInfo = "\nLịch chiếu:\n";
-        showtimeResult.data.forEach(dateGroup => {
+        showtimeResult.data.forEach((dateGroup) => {
           showtimeInfo += `- Ngày ${dateGroup.date} (${dateGroup.day}):\n`;
-          dateGroup.cinemas.forEach(cinema => {
+          dateGroup.cinemas.forEach((cinema) => {
             showtimeInfo += `  + ${cinema.cinema_name}:\n`;
-            cinema.showtimes.forEach(showtime => {
+            cinema.showtimes.forEach((showtime) => {
               // Chuyển đổi thời gian từ "hh:mm" sang "hh giờ mm"
-              const timeParts = showtime.time.split(':');
+              const timeParts = showtime.time.split(":");
               const formattedTime = `${timeParts[0]} giờ ${timeParts[1]}`;
               showtimeInfo += `    * ${formattedTime} - ${showtime.room_name}\n`;
             });
@@ -496,7 +521,10 @@ Thành phố: ${cinema.city}
         showtimeInfo = "\nHiện chưa có thông tin lịch chiếu cho phim này.\n";
       }
     } catch (error) {
-      console.error(`Error fetching showtimes for movie ${movie.id}:`, error.message);
+      console.error(
+        `Error fetching showtimes for movie ${movie.id}:`,
+        error.message
+      );
       showtimeInfo = "\nHiện chưa có thông tin lịch chiếu.\n";
     }
 
@@ -539,14 +567,16 @@ Số cột: ${room.columnsCount}
   let seatInfo = "THÔNG TIN GHẾ:\n";
   if (Object.keys(seatsByRoom).length > 0) {
     // Hiển thị thông tin ghế theo từng phòng
-    Object.keys(seatsByRoom).forEach(roomId => {
+    Object.keys(seatsByRoom).forEach((roomId) => {
       const roomData = seatsByRoom[roomId];
       seatInfo += `Phòng "${roomData.roomName}" tại rạp "${roomData.cinemaName}": Có ${roomData.totalSeats} ghế\n`;
-      
+
       // Hiển thị một số ghế mẫu
       if (roomData.seats && roomData.seats.length > 0) {
         const sampleSeats = roomData.seats.slice(0, 5);
-        seatInfo += `Ví dụ: ${sampleSeats.map(s => `${s.seatRow}${s.seatNumber}`).join(", ")}\n\n`;
+        seatInfo += `Ví dụ: ${sampleSeats
+          .map((s) => `${s.seatRow}${s.seatNumber}`)
+          .join(", ")}\n\n`;
       }
     });
 
@@ -566,11 +596,18 @@ Trạng thái ghế:
   let comboInfo = "THÔNG TIN VỀ ĐỒ ĂN VÀ NƯỚC UỐNG:\n";
   if (comboData && comboData.length > 0) {
     comboData.forEach((combo) => {
-      const itemsDescription = combo.items.map(item => 
-        `${item.quantity} x ${item.product ? item.product.name : 'Sản phẩm không xác định'}`
-      ).join(", ");
-      
-      comboInfo += `- ${combo.name}: ${itemsDescription} (${combo.price.toLocaleString('vi-VN')} đồng)\n`;
+      const itemsDescription = combo.items
+        .map(
+          (item) =>
+            `${item.quantity} x ${
+              item.product ? item.product.name : "Sản phẩm không xác định"
+            }`
+        )
+        .join(", ");
+
+      comboInfo += `- ${
+        combo.name
+      }: ${itemsDescription} (${combo.price.toLocaleString("vi-VN")} đồng)\n`;
     });
   }
 
@@ -713,62 +750,73 @@ Người dùng: ${currentMessage}`;
 // Hàm tạo thông tin giá vé cho prompt
 const createTicketPriceInfo = async (movieData) => {
   let ticketPriceInfo = "THÔNG TIN GIÁ VÉ:\n";
-  
+
   try {
     // Lấy mẫu showtime từ 3 phim đầu tiên
-    const showTimeSamples = await getShowtimeSamplesFromMovies(movieData.slice(0, 3));
-    
+    const showTimeSamples = await getShowtimeSamplesFromMovies(
+      movieData.slice(0, 3)
+    );
+
     // Nếu có mẫu, hiển thị thông tin chi tiết
     if (showTimeSamples.length > 0) {
-      ticketPriceInfo += "Giá vé phụ thuộc vào nhiều yếu tố như rạp chiếu, thời gian, loại ghế. Dưới đây là một số ví dụ về giá vé:\n\n";
-      
+      ticketPriceInfo +=
+        "Giá vé phụ thuộc vào nhiều yếu tố như rạp chiếu, thời gian, loại ghế. Dưới đây là một số ví dụ về giá vé:\n\n";
+
       // Lấy giá vé cho từng mẫu suất chiếu
       for (const sample of showTimeSamples) {
         const priceInfo = await getShowtimePrice(sample.id);
         if (!priceInfo.success) continue;
-        
+
         // Format thời gian hiển thị
         const timeDisplay = formatShowtimeTime(sample, priceInfo);
-        
+
         // Thêm thông tin chi tiết về giá vé
         ticketPriceInfo += `- ${priceInfo.showtime.movie} tại ${priceInfo.showtime.cinema} (${priceInfo.showtime.room}), ${timeDisplay}:\n`;
-        
+
         // Hiển thị giá vé theo từng loại ghế
         if (priceInfo.seat_prices && priceInfo.seat_prices.length > 0) {
-          priceInfo.seat_prices.forEach(seatPrice => {
-            const formattedPrice = Number(seatPrice.price).toLocaleString('vi-VN');
+          priceInfo.seat_prices.forEach((seatPrice) => {
+            const formattedPrice = Number(seatPrice.price).toLocaleString(
+              "vi-VN"
+            );
             ticketPriceInfo += `  + ${seatPrice.type}: ${formattedPrice} đồng\n`;
           });
         } else {
-          const formattedBasePrice = Number(priceInfo.base_price).toLocaleString('vi-VN');
+          const formattedBasePrice = Number(
+            priceInfo.base_price
+          ).toLocaleString("vi-VN");
           ticketPriceInfo += `  + Giá cơ bản: ${formattedBasePrice} đồng\n`;
         }
-        
+
         ticketPriceInfo += "\n";
       }
     } else {
       // Thông tin tổng quát nếu không có mẫu cụ thể
-      ticketPriceInfo += "Giá vé phụ thuộc vào rạp chiếu, thời gian, và loại ghế. Hiện tại chưa có thông tin chi tiết về giá vé cho các suất chiếu cụ thể.\n";
-      ticketPriceInfo += "Thông thường, giá vé dao động từ 50.000 đồng đến 150.000 đồng tùy theo suất chiếu và rạp.\n";
+      ticketPriceInfo +=
+        "Giá vé phụ thuộc vào rạp chiếu, thời gian, và loại ghế. Hiện tại chưa có thông tin chi tiết về giá vé cho các suất chiếu cụ thể.\n";
+      ticketPriceInfo +=
+        "Thông thường, giá vé dao động từ 50.000 đồng đến 150.000 đồng tùy theo suất chiếu và rạp.\n";
     }
-    
+
     // Thêm lưu ý chung về giá vé
-    ticketPriceInfo += "\nLưu ý: Giá vé có thể thay đổi theo thời gian và chương trình khuyến mãi hiện hành. Vui lòng kiểm tra trên website chính thức để biết giá chính xác nhất.\n";
+    ticketPriceInfo +=
+      "\nLưu ý: Giá vé có thể thay đổi theo thời gian và chương trình khuyến mãi hiện hành. Vui lòng kiểm tra trên website chính thức để biết giá chính xác nhất.\n";
   } catch (error) {
     console.error("Error creating ticket price info:", error);
-    ticketPriceInfo += "Giá vé phụ thuộc vào rạp chiếu, thời gian, và loại ghế. Vui lòng kiểm tra trên website chính thức để biết giá chính xác nhất.\n";
+    ticketPriceInfo +=
+      "Giá vé phụ thuộc vào rạp chiếu, thời gian, và loại ghế. Vui lòng kiểm tra trên website chính thức để biết giá chính xác nhất.\n";
   }
-  
+
   return ticketPriceInfo;
 };
 
 // Lấy mẫu suất chiếu từ danh sách phim
 const getShowtimeSamplesFromMovies = async (movies) => {
   const showTimeSamples = [];
-  
+
   for (const movie of movies) {
     try {
-      const showtimeResult = await getShowtimesByMovieId(movie.id);
+      const showtimeResult = await getShowtimesByMovieIdForChat(movie.id);
       if (showtimeResult?.status === 200 && showtimeResult.data?.length > 0) {
         // Lấy showtime đầu tiên trong ngày đầu tiên và rạp đầu tiên
         const dateGroup = showtimeResult.data[0];
@@ -781,23 +829,26 @@ const getShowtimeSamplesFromMovies = async (movies) => {
               movie: movie.name,
               cinema: cinema.cinema_name,
               time: `${dateGroup.date} ${showtime.time}`,
-              room: showtime.room_name
+              room: showtime.room_name,
             });
           }
         }
       }
     } catch (error) {
-      console.error(`Error sampling showtimes for movie ${movie.id}:`, error.message);
+      console.error(
+        `Error sampling showtimes for movie ${movie.id}:`,
+        error.message
+      );
     }
   }
-  
+
   return showTimeSamples;
 };
 
 // Format thời gian hiển thị cho suất chiếu
 const formatShowtimeTime = (sample, priceInfo) => {
   let timeDisplay = sample.time; // Mặc định sử dụng thời gian từ sample
-  
+
   // Nếu có dữ liệu start_time từ API, sử dụng nó thay thế
   if (priceInfo.showtime?.start_time) {
     const startTime = priceInfo.showtime.start_time;
@@ -805,6 +856,6 @@ const formatShowtimeTime = (sample, priceInfo) => {
       timeDisplay = `${startTime.date} (${startTime.dayOfWeek}), ${startTime.time}`;
     }
   }
-  
+
   return timeDisplay;
 };

@@ -98,9 +98,23 @@ exports.handleCallback = async (req, res) => {
             signature
         } = req.body;
 
+        console.log('MOMO IPN Callback received:', req.body);
         
         // Chuyển dữ liệu callback từ MoMo đến service
         const result = await orderService.handleCallback(req.body);
+        
+        // Nếu thanh toán thành công, tạo mã QR
+        if (resultCode === '0' || resultCode === 0) {
+            console.log('Payment successful, creating QR code');
+            
+            // Order đã được cập nhật trong orderService.handleCallback
+            
+            // Có thể thêm webhook để thông báo cho client biết về thanh toán thành công
+            // Ví dụ: gửi socket hoặc thông báo push
+        } else {
+            console.log('Payment failed:', message);
+            // Đơn hàng đã được cập nhật trạng thái failed trong orderService.handleCallback
+        }
         
         // Luôn trả về 200 cho MoMo để nó không gửi lại request
         res.status(200).json({ message: result.message || 'Processed' });
@@ -191,10 +205,13 @@ exports.checkPaymentStatus = async (req, res) => {
     try {
         const { orderId } = req.params;
         
+        console.log('Client checking payment status for orderId:', orderId);
+        
         // Gọi service để kiểm tra trạng thái thanh toán
         const result = await orderService.checkPaymentStatus(orderId);
         
-       res.json(result);
+        // Trả về kết quả truy vấn cho client
+        res.json(result);
     } catch (error) {
         console.error('Lỗi khi kiểm tra trạng thái thanh toán:', error);
         res.status(500).json({
