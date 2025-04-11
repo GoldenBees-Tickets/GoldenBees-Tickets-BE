@@ -6,6 +6,7 @@ const {
     updateDirector,
     deleteDirector
 } = require("../../service/directorService");
+const { uploadToCloudinary } = require("../../utils/cloudinary");
 const uploadFolder = 'directors';
 class ApiDirectorController {
     static async index(req, res) {
@@ -53,7 +54,8 @@ class ApiDirectorController {
 
             const { name, dob, bio, gender } = req.body;
             const file = req.file;
-
+            console.log("File:", file);
+            
             const uploadFileName = file.originalname.split('.')[0]; // Lấy tên file không có đuôi
 
             const profile_picture = await uploadToCloudinary(file, uploadFolder, uploadFileName);
@@ -75,14 +77,20 @@ class ApiDirectorController {
         try {
             const { id } = req.params;
             const { name, dob, bio, gender } = req.body;
+                console.log("File data:", { name, dob, bio, gender });
+                
             const file = req.file;
+            console.log("File update:", file);
+            if(file) {
+                const uploadFileName = file.originalname.split('.')[0]; // Lấy tên file không có đuôi
 
-            const uploadFileName = file.originalname.split('.')[0]; // Lấy tên file không có đuôi
-
-            const url = await uploadToCloudinary(file, uploadFolder, uploadFileName);
-
-            const profile_picture = url;
-            const updated = await updateDirector({ id, name, dob, bio, gender, profile_picture });
+                const url = await uploadToCloudinary(file, uploadFolder, uploadFileName);
+    
+                const profile_picture = url;
+                const updated = await updateDirector({ id, name, dob, bio, gender, profile_picture });
+                return res.json({ message: "Director updated successfully", director: updated });
+            }
+            const updated = await updateDirector({ id, name, dob, bio, gender });
 
             if (updated) {
                 res.json({ message: "Director updated successfully" });

@@ -78,12 +78,21 @@ class ApiActorController {
         try {
             const { id } = req.params;
             const { name, dob, bio, gender } = req.body;
-            const profile_picture = req.file ? req.file.path : undefined;
-            const uploadFileName = fileName || file.originalname.split('.')[0]; // Lấy tên file không có đuôi
+            console.log("File data:", { name, dob, bio, gender });
+            
+            const file = req.file;
 
-            const url = await uploadToCloudinary(profile_picture, uploadFolder, uploadFileName);
 
-            const updated = await updateActor({ id, name, dob, bio, gender, profile_picture: url });
+            console.log("File update:", file);
+            if(file) {
+                const uploadFileName = file.originalname.split('.')[0]; // Lấy tên file không có đuôi
+
+                const profile_picture = await uploadToCloudinary(file, uploadFolder, uploadFileName);
+    
+                const updated = await updateActor({ id, name, dob, bio, gender, profile_picture });
+                return res.json({ message: "Director updated successfully", director: updated });
+            }
+            const updated = await updateActor({ id, name, dob, bio, gender});
 
             if (updated) {
                 res.json({ message: "Actor updated successfully" });

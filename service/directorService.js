@@ -81,8 +81,14 @@ const createDirector = async ({ name, dob, bio, gender, profile_picture }) => {
 // Cập nhật thông tin đạo diễn
 const updateDirector = async ({ id, name, dob, bio, gender, profile_picture }) => {
     try {
+        if(profile_picture) {
+            return await Director.update(
+                { name, dob, bio, gender, profile_picture },
+                { where: { id } }
+            );
+        }
         return await Director.update(
-            { name, dob, bio, gender, profile_picture },
+            { name, dob, bio, gender },
             { where: { id } }
         );
     } catch (error) {
