@@ -298,101 +298,170 @@ const handleCallback = async (callbackData) => {
       signature,
     } = callbackData;
 
-    // Cập nhật trạng thái thanh toán
-    const payment = await Payment.findOne({ where: { orderId } });
+    console.log('Processing Momo callback for orderId:', orderId);
 
-    if (!payment) {
-      console.error("Payment not found for orderId:", orderId);
+    // Tìm order dựa trên orderId
+    const order = await Order.findOne({ where: { id: orderId } });
+
+    if (!order) {
+      console.error("Order not found for orderId:", orderId);
       return {
         status: 404,
-        error: "Payment not found",
+        error: "Order not found",
         success: false,
-        message: "Payment not found but accepting callback",
+        message: "Order not found but accepting callback",
       };
     }
 
     // Giải mã extraData nếu có
-    let bookingData = {};
+    let extraDataObj = {};
     if (extraData) {
       try {
         const decodedData = Buffer.from(extraData, "base64").toString();
-        bookingData = JSON.parse(decodedData);
+        extraDataObj = JSON.parse(decodedData);
       } catch (error) {
         console.error("Lỗi khi giải mã extraData:", error);
       }
     }
+    
+    const user_id = order.user_id;
+    const showtime_id = order.showtime_id;
 
-    const { booking_id, user_id, showtime_id } = bookingData;
+    if (resultCode === '0' || resultCode === 0) {
+      // Thanh toán thành công - Bắt đầu transaction
+      const transaction = await sequelize.transaction();
+      
+      try {
+        // Cập nhật trạng thái Order
+        await order.update({
+          status: "paid",
+        }, { transaction });
 
-    if (resultCode === 0) {
-      // Thanh toán thành công
-      await payment.update({
-        status: "SUCCESS",
-        transactionId: transId,
-        paymentTime: responseTime,
-        responseData: JSON.stringify(callbackData),
-      });
-
-      payment.save();
-
-      await Order.update({
-        status: "CONFIRMED",
-        where: { id: orderId },
-      });
-
-      // Cập nhật trạng thái đặt vé
-      if (booking_id) {
-        try {
-          // Cập nhật trạng thái booking
-          // await Booking.update(
-          //     {
-          //         status: 'CONFIRMED',
-          //         payment_status: 'PAID',
-          //         payment_time: new Date(responseTime),
-          //         payment_method: 'MOMO'
-          //     },
-          //     { where: { id: booking_id } }
-          // );
-
-          // Tạo vé điện tử
-          await generateTickets(showtime_id);
-        } catch (error) {
-          console.error("Lỗi khi cập nhật booking:", error);
+        // Lấy thông tin người dùng và cập nhật điểm thưởng
+        const userData = await User.findOne({ where: { id: user_id } });
+        if (userData) {
+          userData.star = userData.star + 3;
+          await userData.save({ transaction });
         }
+
+        // Lấy danh sách vé liên quan đến đơn hàng
+        const tickets = await Ticket.findAll({
+          where: { order_id: orderId },
+          transaction
+        });
+
+        // Cập nhật trạng thái ghế thành "Booked"
+        const seatIds = tickets.map(ticket => ticket.seat_id);
+        
+        await SeatStatus.update(
+          { status: "Booked" },
+          {
+            where: {
+              seat_id: { [Op.in]: seatIds },
+              showtime_id: showtime_id,
+            },
+            transaction
+          }
+        );
+
+        // Lấy thông tin suất chiếu và phim
+        const showtimeData = await Showtime.findOne({
+          where: { id: showtime_id },
+          transaction
+        });
+
+        if (!showtimeData) {
+          throw new Error("Không tìm thấy suất chiếu.");
+        }
+
+        const movieData = await Movie.findOne({
+          where: { id: showtimeData.movie_id },
+          transaction
+        });
+
+        if (!movieData) {
+          throw new Error("Không tìm thấy phim.");
+        }
+
+        // Lấy thông tin ghế
+        const seatDatas = await Promise.all(
+          tickets.map(async (item) => {
+            return await Seat.findOne({ 
+              where: { id: item.seat_id },
+              transaction
+            });
+          })
+        );
+
+        // Commit transaction trước khi gọi hàm bên ngoài
+        await transaction.commit();
+
+        // Tạo mã QR cho vé
+        const email = userData?.email;
+        const createQrCode = await generateQRCode({
+          movieName: movieData.name,
+          showtime: showtimeData.start_time,
+          seatDatas,
+          orderId,
+          total: order.total,
+          user_id,
+          email,
+        });
+
+        console.log('Payment successful, QR code generated:', !!createQrCode);
+
+        return {
+          success: true,
+          message: "Payment processed successfully",
+          sendEmail: createQrCode,
+        };
+      } catch (error) {
+        // Rollback nếu có lỗi
+        await transaction.rollback();
+        console.error("Lỗi khi xử lý thanh toán thành công:", error);
+        return {
+          success: false,
+          message: "Error processing successful payment",
+          error: error.message,
+        };
       }
     } else {
       // Thanh toán thất bại
-      await payment.update({
-        status: "FAILED",
-        responseData: JSON.stringify(callbackData),
-        error_message: message,
+      await order.update({
+        status: "failed",
+        payment_status: "FAILED",
+        error_message: message
       });
 
-      payment.save();
-    }
+      // Giải phóng ghế đã đặt
+      await releaseBookedSeats(orderId, showtime_id);
 
-    return {
-      success: true,
-      message: "Processed",
-    };
+      console.log(`Payment failed for order ${orderId}, seats released`);
+
+      return {
+        success: true,
+        message: "Payment failure processed",
+      };
+    }
   } catch (error) {
     console.error("Lỗi khi xử lý callback MOMO:", error);
     return {
       success: false,
       message: "Error occurred but processed",
+      error: error.message
     };
   }
 };
 
 // Hàm tạo vé điện tử
-const generateTickets = async (booking_id) => {
+const generateTickets = async (orderId) => {
   try {
-    if (!booking_id) {
-      console.error("Booking not found:", booking_id);
+    if (!orderId) {
+      console.error("orderId not found:", orderId);
       return;
     }
 
-    const ticketCode = generateTicketCode(booking_id);
+    const ticketCode = generateTicketCode(orderId);
 
     return true;
   } catch (error) {
@@ -447,103 +516,86 @@ const generateTicketCode = (order_id) => {
 
 // Hàm kiểm tra trạng thái thanh toán
 const checkPaymentStatus = async (orderId) => {
-  const transaction = await sequelize.transaction();
   try {
-    // Cập nhật trạng thái Payment
-    const updatePayment = await Payment.update(
-      { status: "Success" },
-      { where: { orderId }, transaction }
-    );
-
-    // Cập nhật trạng thái Order
-    const updateOrder = await Order.update(
-      { status: "completed" },
-      { where: { id: orderId }, transaction }
-    );
-
-    if (updatePayment[0] === 0 || updateOrder[0] === 0) {
-      throw new Error("Cập nhật thất bại. Thực hiện rollback.");
-    }
-
-    // Commit transaction nếu mọi thứ thành công
-    await transaction.commit();
-
-    const orderData = await Order.findOne({ where: { id: orderId } });
-
-    if (!orderData) throw new Error("Không tìm thấy đơn hàng.");
-    const user_id = orderData.user_id;
-    const userData = await User.findOne({ where: { id: user_id } });
-    userData.star = userData.star + 3;
-    await userData.save();
-
-    const email = userData?.email;
-
-    const SeatIds = await Ticket.findAll({
-      where: { order_id: orderId },
-    });
-
-    const showtimeData = await Showtime.findOne({
-      where: { id: orderData.showtime_id },
-    });
-    const updateShowtimeStatus = SeatIds?.map(async (item) => {
-      return await SeatStatus.update(
-        { status: "Booked" },
+    // Chỉ truy vấn thông tin đơn hàng, không cập nhật
+    const orderData = await Order.findOne({ 
+      where: { id: orderId },
+      include: [
         {
-          where: {
-            seat_id: item.seat_id,
-            showtime_id: orderData.showtime_id,
-          },
+          model: Showtime,
+          include: [
+            {
+              model: Movie,
+              attributes: ['id', 'name', 'poster']
+            },
+            {
+              model: Room,
+              include: [
+                {
+                  model: Cinema,
+                  attributes: ['name']
+                }
+              ]
+            }
+          ]
         }
-      );
+      ]
     });
 
-    if (!showtimeData) throw new Error("Không tìm thấy suất chiếu.");
-
-    const movieData = await Movie.findOne({
-      where: { id: showtimeData.movie_id },
+    if (!orderData) {
+      return {
+        status: 404,
+        success: false,
+        message: "Không tìm thấy đơn hàng.",
+        error: "Order not found"
+      };
+    }
+    
+    // Lấy thông tin vé
+    const tickets = await Ticket.findAll({
+      where: { order_id: orderId }
     });
-
-    if (!movieData) throw new Error("Không tìm thấy phim.");
-
-    const ticketData = await Ticket.findAll({ where: { order_id: orderId } });
-
-    if (!ticketData.length) throw new Error("Không tìm thấy vé.");
-
-    // Lấy danh sách ghế
-    const seatDatas = await Promise.all(
-      ticketData.map(async (item) => {
-        return await Seat.findOne({ where: { id: item.seat_id } });
+    
+    // Lấy thông tin ghế
+    const seats = await Promise.all(
+      tickets.map(async (ticket) => {
+        return await Seat.findOne({ where: { id: ticket.seat_id } });
       })
     );
-
-    // Tạo mã QR
-    const createQrCode = await generateQRCode({
-      movieName: movieData.name,
-      showtime: showtimeData.start_time,
-      seatDatas,
-      orderId,
-      total: orderData.total,
-      user_id,
-      email,
-    });
+    
+    // Tính tổng số ghế
+    const seat_count = seats.length;
+    
+    // Tạo thông tin để hiển thị cho người dùng
+    const booking = {
+      movie: orderData.Showtime?.Movie?.name || "N/A",
+      showtime: orderData.Showtime?.start_time || "N/A",
+      cinema: orderData.Showtime?.Room?.Cinema?.name || "N/A",
+      seat_count,
+      poster: orderData.Showtime?.Movie?.poster || null,
+      room: orderData.Showtime?.Room?.name || "N/A",
+      seats: seats.map(seat => seat ? `${seat.seat_row}${seat.seat_number}` : "").filter(Boolean).join(", "),
+      status: orderData.status,
+      total: orderData.total
+    };
 
     return {
       status: 200,
       success: true,
       data: {
         payment_id: orderId,
-        payment_status: "Success",
-        message: "Thanh toán thành công",
+        payment_status: orderData.status === "paid" ? "Success" : "Failed",
+        message: orderData.status === "paid" ? "Thanh toán thành công" : "Thanh toán thất bại",
+        booking
       },
-      sendEmail: createQrCode,
-      error: null,
+      error: null
     };
   } catch (error) {
-    console.error("Lỗi sau khi commit:", error);
+    console.error("Lỗi khi kiểm tra trạng thái đơn hàng:", error);
     return {
       success: false,
-      message: "Lỗi khi xử lý đơn hàng sau commit",
-      error: error.message,
+      message: "Lỗi khi kiểm tra trạng thái đơn hàng",
+      error: error.message
     };
   }
 };

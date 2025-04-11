@@ -260,6 +260,43 @@ const getShowtimesByMovieId = async (movie_id, options) => {
     }
 };
 
+const getShowtimesByMovieIdForChat = async (movie_id) => {
+    try {
+        
+        const showtimes = await Showtime.findAll({
+            where: movie_id,
+            include: [
+                {
+                    model: Movie,
+                    attributes: ["id", "name", "poster", "duration"]
+                },
+                {
+                    model: Room,
+                    include: [
+                        {
+                            model: Cinema,
+                            include: [
+                                {
+                                    model: Branch,
+                                    attributes: ["id", "name", "city"]
+                                }
+                            ],
+                            attributes: ["id", "name", "city", "branch_id"]
+                        }
+                    ],
+                    attributes: ["id", "name", "cinema_id"]
+                }
+            ],
+            order: [["show_date", "ASC"], ["start_time", "ASC"]]
+        });
+        
+        return showtimes;
+    } catch (error) {
+        console.error("Error in getShowtimesByMovieId service:", error);
+        throw error;
+    }
+};
+
 const getShowtimeById = async (id) => {
     try {
         const showtime = await Showtime.findOne({
@@ -382,5 +419,6 @@ module.exports = {
     getShowtimesByMovieId,
     check_Existing_Showtime,
     createShowtime,
-    updateShowtime
+    updateShowtime,
+    getShowtimesByMovieIdForChat
 };

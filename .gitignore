@@ -26,6 +26,7 @@ server/public/uploads/
 
 # Environment variables
 .env
+.env.example
 .env.local
 .env.*.local
 package-lock.json
