@@ -1,4 +1,4 @@
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 const {
   Movie,
   MovieGenre,
@@ -60,10 +60,10 @@ const getAllMovies = async (options = {}) => {
       };
     }
 
-    // Lọc theo trạng thái
-    if (status) {
-      whereClause.status = status;
-    }
+    // // Lọc theo trạng thái
+    // if (status) {
+    //   whereClause.status = status;
+    // }
 
     // Đếm tổng số phim thỏa mãn điều kiện (không sử dụng include)
     const { count } = await Movie.findAndCountAll({
@@ -115,6 +115,11 @@ const getAllMovies = async (options = {}) => {
 const getAllMoviesByUsers = async () => {
   try {
     const data = await Movie.findAll({
+      where: {
+        status: {
+          [Op.ne]: 'ended'
+        }
+      },
       include: [
         {
           model: MovieGenre,
@@ -131,7 +136,14 @@ const getAllMoviesByUsers = async () => {
         },
       ],
     });
-    return ({status: 200, success: true, message: "Lấy danh sách phim thành công", error: false, data});
+
+    return {
+      status: 200,
+      success: true,
+      message: "Lấy danh sách phim thành công",
+      error: false,
+      data
+    };
   } catch (error) {
     console.error("Error fetching movies:", error.message);
     throw error;

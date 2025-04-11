@@ -64,6 +64,9 @@ const {
 Order.hasMany(Ticket, { foreignKey: "order_id" });
 Ticket.belongsTo(Order, { foreignKey: "order_id" });
 
+Order.hasMany(PromotionUsage, { foreignKey: "order_id" });
+PromotionUsage.belongsTo(Order, { foreignKey: "order_id" });
+
 Order.belongsTo(Showtime, { foreignKey: "showtime_id" });
 Showtime.hasMany(Order, { foreignKey: "showtime_id" });
 

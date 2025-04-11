@@ -5,6 +5,7 @@ const db = require("../models");
 const Ticket1 = db.Ticket1;
 const nodemailer = require("nodemailer");
 require("dotenv").config();
+const {Order} = require("../models");
 
 // Lấy thông tin email từ biến môi trường
 const EMAIL_ADMIN = process.env.EMAIL_ADMIN;
@@ -25,8 +26,7 @@ const sendQRCodeEmail = async ({
 }) => {
 
   console.log("-------------------------------------------------");
-  
-  console.log("data send mail", movieName, showtime, total);
+  console.log("sendQRCodeEmail", qrUrl);
   
   try {
     // Format lại showtime để hiển thị đúng
@@ -292,6 +292,8 @@ const generateQRCode = async ({
 
     // Trả về URL của mã QR
     const qrUrl = `/qr-codes/${fileName}`;
+    const qr_code = `/public${qrUrl}`;
+    await Order.update({ qr_code }, { where: { id: orderId } });
 
     // Nếu có email trong dữ liệu, gửi mã QR qua email
     let emailResult = null;

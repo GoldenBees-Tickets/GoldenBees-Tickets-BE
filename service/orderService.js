@@ -174,7 +174,7 @@ const payWithMoMo = async (data) => {
 
     if (promotion_id) {
       promotion_id = Number(promotion_id);
-      await PromotionUsage.create({ user_id, promotion_id });
+      await PromotionUsage.create({ user_id, promotion_id, order_id });
     }
     await transaction.commit();
     // Tạo extraData (mã hóa booking_id, user_id, showtime_id để sau này sử dụng)

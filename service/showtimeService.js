@@ -286,29 +286,43 @@ const getShowtimesByMovieId = async (movie_id, options) => {
     }
 };
 
-const getShowtimesByMovieIdForChat = async (movie_id) => {
-    try {
-        const now = moment().tz('Asia/Ho_Chi_Minh');
+const getShowtimesForUserByMovieId = async (data) => {
+    try {     
+        console.log("movie_id check", data.movie_id);
+           
+        let whereCondition = {
+            movie_id: data.movie_id
+        };
+        
+        // Lấy thời gian hiện tại và cache
+        const now = moment().tz('Asia/Ho_Chi_Minh'); // Sử dụng múi giờ Việt Nam
         const todayStr = now.format("YYYY-MM-DD");
         const currentTime = now.format("HH:mm:ss");
         
-        const showtimes = await Showtime.findAll({
-            where: {
-                movie_id,
-                [Op.or]: [
-                    {
-                        show_date: {
-                            [Op.gt]: todayStr
-                        }
-                    },
-                    {
-                        [Op.and]: [
-                            { show_date: todayStr },
-                            { start_time: { [Op.gt]: currentTime } }
-                        ]
+        console.log(`Lọc suất chiếu: Ngày hiện tại ${todayStr}, Giờ hiện tại ${currentTime}`);
+        
+        // Thêm điều kiện lọc theo thời gian hiện tại nếu được yêu cầu
+        if (now) {
+            // Nếu là ngày hiện tại, chỉ lấy các xuất chiếu có thời gian sau giờ hiện tại
+            whereCondition[Op.or] = [
+                {
+                    // Các ngày trong tương lai
+                    show_date: {
+                        [Op.gt]: todayStr
                     }
-                ]
-            },
+                },
+                {
+                    // Ngày hiện tại nhưng giờ chiếu phải lớn hơn giờ hiện tại
+                    [Op.and]: [
+                        { show_date: todayStr },
+                        { start_time: { [Op.gt]: currentTime } }
+                    ]
+                }
+            ];
+        }
+                
+        const showtimes = await Showtime.findAll({
+            where: whereCondition,
             include: [
                 {
                     model: Movie,
@@ -333,6 +347,91 @@ const getShowtimesByMovieIdForChat = async (movie_id) => {
             ],
             order: [["show_date", "ASC"], ["start_time", "ASC"]]
         });
+        
+        // Lọc bỏ các mục không hợp lệ và sắp xếp theo ngày, giờ
+        const validShowtimes = showtimes.filter(showtime => 
+            showtime.Movie && showtime.Room && showtime.Room.Cinema
+        );
+        
+        // console.log(`Tìm thấy ${validShowtimes.length}/${showtimes.length} suất chiếu hợp lệ cho phim ID ${data.movie_id}`);
+        
+        // return validShowtimes;
+        return {
+            status: 200,
+            success: true,
+            message: "Lấy lịch chiếu thành công",
+            data: validShowtimes, // mảng flat các suất chiếu
+          };
+    } catch (error) {
+        console.error("Error in getShowtimesByMovieId service:", error);
+        throw error;
+    }
+};
+
+const getShowtimesByMovieIdForChat = async (movie_id) => {
+    try {
+        const now = moment().tz("Asia/Ho_Chi_Minh");
+        const todayStr = now.format("YYYY-MM-DD");
+        const currentTime = now.format("HH:mm:ss");
+        
+        console.log(`DEBUG: movie_id=${movie_id}, todayStr=${todayStr}, currentTime=${currentTime}`);
+        
+        // Trước tiên, kiểm tra xem có suất chiếu nào cho phim này không
+        const allShowtimes = await Showtime.findAll({
+            where: { movie_id },
+            order: [["show_date", "ASC"], ["start_time", "ASC"]],
+        });
+        
+        console.log(`DEBUG: Tổng số suất chiếu cho phim: ${allShowtimes.length}`);
+        
+        // Sau đó mới áp dụng bộ lọc thời gian
+        const showtimes = await Showtime.findAll({
+            where: {
+                movie_id,
+                [Op.or]: [
+                    {
+                        show_date: {
+                            [Op.gt]: todayStr,
+                        },
+                    },
+                    {
+                        [Op.and]: [
+                            { show_date: todayStr },
+                            {
+                                start_time: {
+                                    [Op.gt]: currentTime,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            include: [
+                {
+                    model: Movie,
+                    attributes: ["id", "name", "poster", "duration"],
+                },
+                {
+                    model: Room,
+                    include: [
+                        {
+                            model: Cinema,
+                            include: [
+                                {
+                                    model: Branch,
+                                    attributes: ["id", "name", "city"],
+                                },
+                            ],
+                            attributes: ["id", "name", "city", "branch_id"],
+                        },
+                    ],
+                    attributes: ["id", "name", "cinema_id"],
+                },
+            ],
+            order: [["show_date", "ASC"], ["start_time", "ASC"]],
+        });
+        
+        console.log(`DEBUG: Số suất chiếu hợp lệ (chưa diễn ra): ${showtimes.length}`);
         
         return showtimes;
     } catch (error) {
@@ -464,5 +563,6 @@ module.exports = {
     check_Existing_Showtime,
     createShowtime,
     updateShowtime,
-    getShowtimesByMovieIdForChat
+    getShowtimesByMovieIdForChat,
+    getShowtimesForUserByMovieId
 };
