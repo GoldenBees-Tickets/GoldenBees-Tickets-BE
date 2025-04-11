@@ -1,6 +1,6 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { getAllCinemas } = require("../service/cinemaService");
-const { getAllMovies } = require("../service/movieSevice");
+const { getAllMovies, getAllMoviesByUsers } = require("../service/movieSevice");
 const { getAllRoom } = require("../service/roomService");
 const { getAllSeat } = require("../service/seatService");
 const { getAllCombos } = require("../service/comboService");
@@ -8,7 +8,10 @@ const { getAllSeatType } = require("../service/seatTypeService");
 const {
   getShowtimeById,
   getShowtimesByMovieIdForChat,
+  getShowtimesByMovieId,
+  getShowtimesForUserByMovieId,
 } = require("../service/showtimeService");
+const { log } = require("node:console");
 require("dotenv").config();
 
 // Lấy API key từ biến môi trường
@@ -144,10 +147,10 @@ exports.generateResponse = async (req, res) => {
     }));
 
     // Lấy dữ liệu phim từ database
-    const movies = await getAllMovies();
-
+    const movies = await getAllMoviesByUsers();
+    
     // Chuyển đổi dữ liệu movie vào định dạng phù hợp
-    const movieData = movies?.movies.map((movie) => ({
+    const movieData = movies?.data.map((movie) => ({
       id: movie.id,
       name: movie.name,
       description: movie.description,
@@ -203,8 +206,9 @@ exports.generateResponse = async (req, res) => {
 
     // Lấy thông tin loại ghế từ database
     const seatTypes = await getAllSeatType();
-
-    const seatTypesList = seatTypes.map((type) => ({
+      console.log("seatTypes111", seatTypes);
+      
+    const seatTypesList = seatTypes?.seat_types.map((type) => ({
       id: type.id,
       type: type.type,
       color: type.color,
@@ -216,14 +220,16 @@ exports.generateResponse = async (req, res) => {
     seatTypesList.forEach((type) => {
       seatTypeMap[type.id] = type;
     });
-
+    console.log("seatTypeMap", seatTypeMap);
+    
     // Chỉ lấy ghế từ tối đa 5 phòng đầu tiên để tránh quá nhiều dữ liệu
     if (roomData && roomData.length > 0) {
       for (let i = 0; i < Math.min(5, roomData.length); i++) {
         try {
           const room = roomData[i];
           const seats = await getAllSeat(room.id);
-
+          console.log("seats length", seats?.length);
+          
           const seatList = seats.map((seat) => {
             // Lấy thông tin loại ghế
             const seatType = seatTypeMap[seat.type_id] || {
@@ -231,7 +237,18 @@ exports.generateResponse = async (req, res) => {
               color: "#CCCCCC",
               price_offset: 0,
             };
-
+            console.log("return, ",  {
+              id: seat.id,
+              roomId: seat.room_id,
+              seatNumber: seat.seat_number,
+              seatRow: seat.seat_row,
+              isEnabled: seat.is_enabled,
+              typeId: seat.type_id,
+              type: seatType.type,
+              color: seatType.color,
+              price_offset: seatType.price_offset,
+            });
+            
             return {
               id: seat.id,
               roomId: seat.room_id,
@@ -243,7 +260,11 @@ exports.generateResponse = async (req, res) => {
               color: seatType.color,
               price_offset: seatType.price_offset,
             };
+
           });
+
+          console.log("seatList", seatList.length); // ✅ OK tại đây
+
 
           // Lưu thông tin ghế theo phòng
           seatsByRoom[room.id] = {
@@ -253,6 +274,8 @@ exports.generateResponse = async (req, res) => {
             seats: seatList,
             seatTypes: seatTypesList,
           };
+
+          console.log("seatsByRoom", seatsByRoom.length);
         } catch (error) {
           console.error(
             `Error fetching seats for room at index ${i}:`,
@@ -419,7 +442,8 @@ exports.getTicketPrice = async (req, res) => {
 exports.getAllSeatTypes = async (req, res) => {
   try {
     const seatTypes = await getSeatTypes();
-
+    console.log("seatTypes", seatTypes);
+    
     return res.json({
       success: true,
       message: "Get seat types successfully",
@@ -494,10 +518,13 @@ Thành phố: ${cinema.city}
     // Lấy thông tin suất chiếu cho phim này
     let showtimeInfo = "";
     try {
-      const showtimeResult = await getShowtimesByMovieIdForChat({
+      const showtimeResult = await getShowtimesForUserByMovieId({
         movie_id: movie.id,
       });
-
+      console.log("movie_id", movie.id);
+      
+      // console.log("showtimeResult",showtimeResult);
+      
       if (
         showtimeResult &&
         showtimeResult.status === 200 &&
@@ -505,21 +532,17 @@ Thành phố: ${cinema.city}
         showtimeResult.data.length > 0
       ) {
         showtimeInfo = "\nLịch chiếu:\n";
-        showtimeResult.data.forEach((dateGroup) => {
-          showtimeInfo += `- Ngày ${dateGroup.date} (${dateGroup.day}):\n`;
-          dateGroup.cinemas.forEach((cinema) => {
-            showtimeInfo += `  + ${cinema.cinema_name}:\n`;
-            cinema.showtimes.forEach((showtime) => {
-              // Chuyển đổi thời gian từ "hh:mm" sang "hh giờ mm"
-              const timeParts = showtime.time.split(":");
-              const formattedTime = `${timeParts[0]} giờ ${timeParts[1]}`;
-              showtimeInfo += `    * ${formattedTime} - ${showtime.room_name}\n`;
-            });
-          });
+        showtimeResult?.data.forEach((dateGroup) => {
+          // console.log("dateGroup",dateGroup);
+          
+          showtimeInfo += `- Ngày ${dateGroup.show_date} / ${dateGroup.start_time}:\n`;
+          `Phong: ${dateGroup?.Room.name}\n`;
         });
       } else {
         showtimeInfo = "\nHiện chưa có thông tin lịch chiếu cho phim này.\n";
       }
+    
+      
     } catch (error) {
       console.error(
         `Error fetching showtimes for movie ${movie.id}:`,
@@ -527,6 +550,9 @@ Thành phố: ${cinema.city}
       );
       showtimeInfo = "\nHiện chưa có thông tin lịch chiếu.\n";
     }
+    console.log("showtimeInfo",showtimeInfo);
+    console.log("movie", movie);
+    
 
     return `
 Phim: ${movie.name}

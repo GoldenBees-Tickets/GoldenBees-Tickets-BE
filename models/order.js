@@ -36,6 +36,11 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
                 defaultValue: 'none',  
             },
+            qr_code: {
+                type: DataTypes.STRING,
+                allowNull: true,
+                defaultValue: '',  
+            },
         },
         {
             timestamps: true, 

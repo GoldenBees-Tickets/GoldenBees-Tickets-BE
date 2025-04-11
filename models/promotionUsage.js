@@ -1,10 +1,13 @@
-const { table } = require("console");
 
 module.exports = (sequelize, DataTypes) => {
   const PromotionUsage = sequelize.define(
     "PromotionUsage",
     {
       user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      order_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
