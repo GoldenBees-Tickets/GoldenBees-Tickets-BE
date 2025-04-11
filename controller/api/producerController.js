@@ -6,7 +6,10 @@ const {
   updateProducer,
   deleteProducer,
 } = require("../../service/producerService");
-const { uploadToCloudinary, deleteFromCloudinary } = require("../../utils/cloudinary");
+const {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+} = require("../../utils/cloudinary");
 
 const uploadFolder = "producers";
 class ApiProducerController {
@@ -15,17 +18,17 @@ class ApiProducerController {
       // Lấy các tham số phân trang, tìm kiếm và sắp xếp từ request
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 5;
-      const search = req.query.search || '';
-      const sort_order = req.query.sort_order || 'desc';
-      
+      const search = req.query.search || "";
+      const sort_order = req.query.sort_order || "desc";
+
       // Gọi service với các tham số
       const result = await getAllProducers({ page, limit, search, sort_order });
-      
+
       // Trả về dữ liệu với thông tin phân trang
       res.json({
         message: "Get producers successfully",
         producers: result.producers,
-        pagination: result.pagination
+        pagination: result.pagination,
       });
     } catch (error) {
       console.error("Error fetching producers:", error.message);
@@ -77,10 +80,14 @@ class ApiProducerController {
 
       let profile_picture; // Mặc định không thay đổi ảnh
       const file = req?.file;
-
-      if (file) { // Chỉ upload ảnh nếu có file mới
+      if (file) {
+        // Chỉ upload ảnh nếu có file mới
         const uploadFileName = file.originalname.split(".")[0]; // Lấy tên file không có đuôi
-        profile_picture = await uploadToCloudinary(file, uploadFolder, uploadFileName);
+        profile_picture = await uploadToCloudinary(
+          file,
+          uploadFolder,
+          uploadFileName
+        );
       }
 
       const updated = await updateProducer({ id, name, bio, profile_picture });
@@ -99,12 +106,12 @@ class ApiProducerController {
       // Lấy thông tin Producer trước khi xóa
       const producer = await getProducer(id);
       if (!producer) {
-          return resErrors(res, 404, "Producer not found");
+        return resErrors(res, 404, "Producer not found");
       }
 
       // Nếu có ảnh, xóa ảnh trên Cloudinary trước
       if (producer.profile_picture) {
-          await deleteFromCloudinary(producer.profile_picture);
+        await deleteFromCloudinary(producer.profile_picture);
       }
 
       // Xóa Producer trong database

@@ -4,9 +4,21 @@ const { getAllBranches, createBranch, updateBranch, deleteBranch, getBranch } = 
 class ApiBranchController {
     static async index(req, res) {
         try {
-            const branches = await getAllBranches();
-            const message = "Get branches successfully";
-            res.json({ message, branches });
+            // Lấy các tham số phân trang, tìm kiếm và sắp xếp từ request
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 5;
+            const search = req.query.search || '';
+            const sort_order = req.query.sort_order || 'desc';
+            
+            // Gọi service với các tham số
+            const result = await getAllBranches({ page, limit, search, sort_order });
+            
+            // Trả về dữ liệu với thông tin phân trang
+            res.json({
+                message: "Get branches successfully",
+                branches: result.branches,
+                pagination: result.pagination
+            });
         } catch (error) {
             console.error("Error fetching branches", error.message);
             resErrors(res, 500, error.message || "Internal Server Error");

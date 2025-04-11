@@ -4,8 +4,22 @@ const { resErrors } = require("../common/common");
 class ApiSeatTypeController {
     static async index(req, res) {
         try {
-            const seat_types = await getAllSeatType();
-            res.json({status: 200, message: "Get seat_types successfully", seat_types});
+            // Lấy các tham số phân trang, tìm kiếm và sắp xếp từ request
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 5;
+            const search = req.query.search || '';
+            const sort_order = req.query.sort_order || 'desc';
+            
+            // Gọi service với các tham số
+            const result = await getAllSeatType({ page, limit, search, sort_order });
+            
+            // Trả về dữ liệu với thông tin phân trang
+            res.json({
+                status: 200, 
+                message: "Get seat_types successfully", 
+                seat_types: result.seat_types,
+                pagination: result.pagination
+            });
         } catch (error) {
             console.error("Error seat_types:", error);
             resErrors(res, 500, error.message || "Internal Server Error");  

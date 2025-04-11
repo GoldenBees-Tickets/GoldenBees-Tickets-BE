@@ -1,4 +1,4 @@
-const { Op } = require('sequelize');
+const { Op } = require("sequelize");
 const {
   Movie,
   MovieGenre,
@@ -49,31 +49,34 @@ const getAllMovies = async (options = {}) => {
     
     // Tính toán offset cho phân trang
     const offset = (page - 1) * limit;
-    
+
     // Xây dựng điều kiện tìm kiếm
     let whereClause = {};
-    
+
     // Tìm kiếm theo tên phim
     if (search) {
       whereClause.name = {
-        [Op.like]: `%${search}%`
+        [Op.like]: `%${search}%`,
       };
     }
-    
+
+    // Lọc theo trạng thái
+    if (status) {
+      whereClause.status = status;
+    }
+
     // Đếm tổng số phim thỏa mãn điều kiện (không sử dụng include)
     const { count } = await Movie.findAndCountAll({
       where: whereClause,
-      distinct: true
+      distinct: true,
     });
-    
+
     // Lấy dữ liệu phim với phân trang, sắp xếp và các mối quan hệ
     const movies = await Movie.findAll({
       where: whereClause,
       limit: limit,
       offset: offset,
-      order: [
-        ['release_date', sort_order.toUpperCase()]
-      ],
+      order: [["release_date", sort_order.toUpperCase()]],
       include: [
         {
           model: MovieGenre,
@@ -90,19 +93,45 @@ const getAllMovies = async (options = {}) => {
         },
       ],
     });
-    
+
     // Tính toán thông tin phân trang
     const totalPages = Math.ceil(count / limit);
-    
+
     return {
       movies,
       pagination: {
         total: count,
         totalPages,
         currentPage: page,
-        limit
-      }
+        limit,
+      },
     };
+  } catch (error) {
+    console.error("Error fetching movies:", error.message);
+    throw error;
+  }
+};
+
+const getAllMoviesByUsers = async () => {
+  try {
+    const data = await Movie.findAll({
+      include: [
+        {
+          model: MovieGenre,
+          include: [{ model: Genre }],
+        },
+        { model: Director },
+        {
+          model: MovieActor,
+          include: [{ model: Actor }],
+        },
+        {
+          model: MovieProducer,
+          include: [{ model: Producer }],
+        },
+      ],
+    });
+    return ({status: 200, success: true, message: "Lấy danh sách phim thành công", error: false, data});
   } catch (error) {
     console.error("Error fetching movies:", error.message);
     throw error;
@@ -135,15 +164,21 @@ const createMovieWithRelations = async ({
       director_id,
       year,
       country,
-      release_date
+      release_date,
     });
 
     const movie_id = Number(movie.id);
 
     await Promise.all([
-      ...actorIds.map((actor_id) => createMovieActor({ movie_id, actor_id: Number(actor_id) })),
-      ...producerIds.map((producer_id) => createMovieProducer({ movie_id, producer_id: Number(producer_id) })),
-      ...genreIds.map((genre_id) => createMovieGenre({ movie_id, genre_id: Number(genre_id) })),
+      ...actorIds.map((actor_id) =>
+        createMovieActor({ movie_id, actor_id: Number(actor_id) })
+      ),
+      ...producerIds.map((producer_id) =>
+        createMovieProducer({ movie_id, producer_id: Number(producer_id) })
+      ),
+      ...genreIds.map((genre_id) =>
+        createMovieGenre({ movie_id, genre_id: Number(genre_id) })
+      ),
     ]);
 
     return { movie, status: 200, message: "Movie created successfully" };
@@ -169,10 +204,19 @@ const updateMovieWithRelations = async ({
   genre_id = [],
 }) => {
   try {
-
     // Cập nhật thông tin movie
     const [updatedRows] = await Movie.update(
-      { name, description, trailer, poster, age_rating, duration, director_id, year, country },
+      {
+        name,
+        description,
+        trailer,
+        poster,
+        age_rating,
+        duration,
+        director_id,
+        year,
+        country,
+      },
       { where: { id } }
     );
 
@@ -188,22 +232,33 @@ const updateMovieWithRelations = async ({
       producer_id.length ? deleteMovieProducer(movie_id) : Promise.resolve(),
       genre_id.length ? deleteMovieGenre(movie_id) : Promise.resolve(),
     ]);
-    
 
     // 3Chạy các liên kết song song để tối ưu
     if (actor_id.length) {
-      await Promise.all(actor_id.map((actor) => createMovieActor({ movie_id, actor_id: Number(actor) })));
+      await Promise.all(
+        actor_id.map((actor) =>
+          createMovieActor({ movie_id, actor_id: Number(actor) })
+        )
+      );
     }
 
     if (producer_id.length) {
-      await Promise.all(producer_id.map((producer) => createMovieProducer({ movie_id, producer_id: Number(producer) })));
-    }    
+      await Promise.all(
+        producer_id.map((producer) =>
+          createMovieProducer({ movie_id, producer_id: Number(producer) })
+        )
+      );
+    }
 
-    if (genre_id.length) {      
-      await Promise.all(genre_id.map((genre) => createMovieGenre({ movie_id, genre_id: Number(genre) })));
+    if (genre_id.length) {
+      await Promise.all(
+        genre_id.map((genre) =>
+          createMovieGenre({ movie_id, genre_id: Number(genre) })
+        )
+      );
     }
     const movie = await Movie.findOne({ where: { id } });
-    return {movie, status: 200, message: "Cập nhật phim thành công"};
+    return { movie, status: 200, message: "Cập nhật phim thành công" };
   } catch (error) {
     console.error("Error updating movie:", error.message);
     throw error;
@@ -218,7 +273,7 @@ const deleteMovieWithRelations = async (movieId) => {
       deleteMovieGenre(movieId),
       deleteMovieProducer(movieId),
     ]);
-    
+
     // After deleting related data, delete the movie
     await Movie.destroy({ where: { id: movieId } });
     return { status: 200, message: "Movie deleted successfully" };
@@ -232,95 +287,110 @@ async function getMovieStatus(movie, showtimes) {
   // Thiết lập thời gian về 00:00:00 cho cả hai ngày để tính chính xác
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const releaseDate = new Date(movie.release_date);
   releaseDate.setHours(0, 0, 0, 0);
-  
-  const daysUntilRelease = Math.round((releaseDate - today) / (1000 * 60 * 60 * 24));
-  const hasUpcomingShowtime = showtimes.some(s => {
+
+  const daysUntilRelease = Math.round(
+    (releaseDate - today) / (1000 * 60 * 60 * 24)
+  );
+  const hasUpcomingShowtime = showtimes.some((s) => {
     const showtimeDate = new Date(s.show_date);
     showtimeDate.setHours(0, 0, 0, 0);
     return showtimeDate >= today;
   });
-  
-  // Đặc biệt: Nếu phim có lịch chiếu trong ngày hôm nay, đánh dấu là "đang chiếu" 
+
+  // Đặc biệt: Nếu phim có lịch chiếu trong ngày hôm nay, đánh dấu là "đang chiếu"
   // bất kể ngày phát hành là khi nào (trường hợp chiếu sớm)
-  const hasTodayShowtime = showtimes.some(s => {
+  const hasTodayShowtime = showtimes.some((s) => {
     const showtimeDate = new Date(s.show_date);
     showtimeDate.setHours(0, 0, 0, 0);
     return showtimeDate.getTime() === today.getTime();
   });
-  
+
   if (hasTodayShowtime) {
-    return 'now_showing';
+    return "now_showing";
   }
-  
+
   // Phim đã qua ngày phát hành (ngày phát hành trước ngày hiện tại)
   if (daysUntilRelease <= 0) {
     // Nếu có lịch chiếu tương lai: đang chiếu, ngược lại: đã kết thúc
-    return hasUpcomingShowtime ? 'now_showing' : 'ended';
+    return hasUpcomingShowtime ? "now_showing" : "ended";
   }
-  
+
   // Phim rất gần ngày phát hành (0-7 ngày tới)
   if (daysUntilRelease <= 7) {
     // Nếu có lịch chiếu hôm nay hoặc sắp tới: đánh dấu là đang chiếu (chiếu sớm)
     if (hasUpcomingShowtime) {
-      const hasImmediateShowtime = showtimes.some(s => {
+      const hasImmediateShowtime = showtimes.some((s) => {
         const showtimeDate = new Date(s.show_date);
         showtimeDate.setHours(0, 0, 0, 0);
         // Lịch chiếu trong vòng 3 ngày tới
-        return showtimeDate >= today && 
-               Math.round((showtimeDate - today) / (1000 * 60 * 60 * 24)) <= 3;
+        return (
+          showtimeDate >= today &&
+          Math.round((showtimeDate - today) / (1000 * 60 * 60 * 24)) <= 3
+        );
       });
-      
+
       if (hasImmediateShowtime) {
-        return 'now_showing'; // Có lịch chiếu trong 3 ngày tới = đang chiếu
+        return "now_showing"; // Có lịch chiếu trong 3 ngày tới = đang chiếu
       }
     }
-    return 'opening_soon';
+    return "opening_soon";
   }
-  
+
   // Phim gần ngày phát hành (8-14 ngày)
   if (daysUntilRelease <= 14) {
     // Nếu có lịch chiếu: sắp chiếu, ngược lại: sắp ra mắt
-    return hasUpcomingShowtime ? 'opening_soon' : 'coming_soon';
+    return hasUpcomingShowtime ? "opening_soon" : "coming_soon";
   }
-  
+
   // Phim còn xa ngày chiếu (>14 ngày)
-  return 'coming_soon';
+  return "coming_soon";
 }
 
 async function updateStatuses() {
   try {
     // Thay đổi cách query để đảm bảo showtime được lấy đúng
     const movies = await Movie.findAll({
-      include: [{
-        model: Showtime,
-        required: false, // Lấy cả phim không có showtime
-      }]
+      include: [
+        {
+          model: Showtime,
+          required: false, // Lấy cả phim không có showtime
+        },
+      ],
     });
-    
-  
-    for (const movie of movies) {            
+
+    for (const movie of movies) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       const releaseDate = new Date(movie.release_date);
       releaseDate.setHours(0, 0, 0, 0);
-      
+
       const showtimes = movie.Showtimes || [];
-      
+
       // Gọi hàm getMovieStatus với các thông số đã chuẩn hóa
       const status = await getMovieStatus(movie, showtimes);
-      
+
       if (movie.status !== status) {
         await movie.update({ status });
       }
     }
-    return { status: 200, message: "Đã cập nhật trạng thái phim!", success: true, error: null };
+    return {
+      status: 200,
+      message: "Đã cập nhật trạng thái phim!",
+      success: true,
+      error: null,
+    };
   } catch (error) {
     console.error("Error updating movie statuses:", error.message);
-    return { status: 500, message: "Lỗi khi cập nhật trạng thái phim!", success: false, error: error.message };
+    return {
+      status: 500,
+      message: "Lỗi khi cập nhật trạng thái phim!",
+      success: false,
+      error: error.message,
+    };
   }
 }
 
@@ -408,5 +478,6 @@ module.exports = {
   updateMovieWithRelations,
   deleteMovieWithRelations,
   updateStatuses,
-  getAllMoviesWithValidShowtimes
+  getAllMoviesWithValidShowtimes,
+  getAllMoviesByUsers
 };
