@@ -104,10 +104,20 @@ const deleteBranch = async (id) => {
     }
 }
 
+const getAllBranchesForBoxchat = async () => {
+    try {
+        const branches = await Branch.findAll();
+        return branches;
+    } catch (error) {
+        console.error("Error fetching list of branches", error.message);
+    }
+}
+
 module.exports = {
     getAllBranches,
     getBranch,
     createBranch,
     updateBranch,
     deleteBranch,
+    getAllBranchesForBoxchat
 };

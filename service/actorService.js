@@ -108,10 +108,20 @@ const deleteActor = async (id) => {
     }
 };
 
+const getAllActorsForBoxchat = async () => {
+    try {
+        return await Actor.findAll();
+    } catch (error) {
+        console.error("Error fetching actors:", error.message);
+        throw error;
+    }
+};
+
 module.exports = {
     getAllActors,
     getActor,
     createActor,
     updateActor,
     deleteActor,
+    getAllActorsForBoxchat
 };

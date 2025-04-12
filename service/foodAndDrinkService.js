@@ -129,10 +129,21 @@ const deleteFoodAndDrink = async (id) => {
   }
 };
 
+
+const getAllFoodAndDrinksForBoxchat = async () => {
+  try {
+      return await FoodAndDrink.findAll();
+
+  } catch (error) {
+      throw new Error(error.message || "Lỗi khi lấy danh sách thực phẩm và đồ uống");
+  }
+};
+
 module.exports = {
   getAllFoodAndDrinks,
   getFoodAndDrink,
   createFoodAndDrink,
   updateFoodAndDrink,
   deleteFoodAndDrink,
+  getAllFoodAndDrinksForBoxchat
 };

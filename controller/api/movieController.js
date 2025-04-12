@@ -18,20 +18,10 @@ class ApiMovieController {
   static async index(req, res) {
     try {
       // Sử dụng getAllMoviesWithValidShowtimes để chỉ lấy phim có xuất chiếu hợp lệ
-      const movies = await getAllMoviesWithValidShowtimes();
-      
-      // Kiểm tra một lần nữa và lọc ra các phim có xuất chiếu hợp lệ
-      const validMovies = movies.filter(movie => 
-        movie.Showtimes && movie.Showtimes.length > 0
-      );
-      
-      console.log(`API trả về ${validMovies.length}/${movies.length} phim có xuất chiếu hợp lệ`);
-      
+      const movies = await getAllMovies();
+            
       // Trả về dữ liệu phim đã lọc
-      res.json({
-        message: "Movies with valid showtimes retrieved successfully",
-        movies: validMovies
-      });
+      res.json(movies);
     } catch (error) {
       console.error("Error fetching movies:", error.message);
       resErrors(res, 500, "Internal Server Error");

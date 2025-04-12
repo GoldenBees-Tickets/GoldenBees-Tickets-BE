@@ -87,9 +87,20 @@ const deleteSeatType = async (id) => {
   }
 };
 
+const getAllSeatTypeForBoxchat = async () => {
+  try {
+    const seat_types = await SeatType.findAll();
+    return seat_types;
+  } catch (error) {
+    console.error("Error fetching list of seat_type:", error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllSeatType,
   createSeatType,
   updateSeatType,
   deleteSeatType,
+  getAllSeatTypeForBoxchat
 };

@@ -233,6 +233,23 @@ const deleteRoom = async (id) => {
   }
 };
 
+const getAllRoomForBoxchat = async () => {
+  try {
+
+    const rooms = await Room.findAll({
+      include: {
+        model: Cinema,
+        attributes: ['name']
+      },
+    });
+
+    return {status: 200, rooms};
+  } catch (error) {
+    console.error("Error fetching list of rooms:", error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllRoom,
   getRoom,
@@ -240,4 +257,5 @@ module.exports = {
   updateRoom,
   deleteRoom,
   getRoomsByCinemaId,
+  getAllRoomForBoxchat
 };

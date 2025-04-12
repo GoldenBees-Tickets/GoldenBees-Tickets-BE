@@ -556,6 +556,220 @@ const updateShowtime = async (id, updateData) => {
     }
 };
 
+
+const getShowtimeByBranchIdForBoxchat = async (branch_id) => {
+    console.log("branch_id:", branch_id);
+  
+    try {
+      const showtimes = await Showtime.findAll({
+        include: [
+          {
+            model: Movie,
+          },
+          {
+            model: Room,
+            attributes: ["name"],
+            required: true,
+            include: [
+              {
+                model: Cinema,
+                attributes: ["name"],
+                required: true,
+                where: { branch_id },
+              },
+            ],
+          },
+        ],
+      });
+      return { success: true, status: 200, message: "Get showtimes successfully", error: null ,showtimes };
+    } catch (error) {
+      console.error("Error fetching list of showtimes by branch:", error.message);
+      throw error;
+    }
+  };
+  
+  // Hàm lấy tất cả showtime không lọc theo branch
+  const getAllShowtimesForBoxchat = async () => {
+    try {
+      const showtimes = await Showtime.findAll({
+        include: [
+          {
+            model: Movie,
+          },
+          {
+            model: Room,
+            attributes: ["name"],
+            required: true,
+            include: [
+              {
+                model: Cinema,
+                attributes: ["name"],
+              },
+            ],
+          },
+        ],
+      });
+      return  { success: true, status: 200, message: "Get showtimes successfully", error: null ,showtimes };
+    } catch (error) {
+      console.error("Error fetching all showtimes:", error.message);
+      throw error;
+    }
+  };
+  
+  // Hàm cũ để tương thích ngược (gọi đến một trong hai hàm mới tùy thuộc vào tham số)
+  const getAllShowtimeForBoxchat = async (branch_id) => {
+    if (branch_id && branch_id !== "undefined" && branch_id !== "null") {    
+      return getShowtimeByBranchId(branch_id);
+    } else {    
+      return getAllShowtimes();
+    }
+  };
+
+  const getShowtimesByMovieIdForBoxchat = async (movie_id) => {
+    try {
+      const showtimes = await Showtime.findAll({
+        where: { movie_id },
+        include: [
+          {
+            model: Room,
+            attributes: ["id", "name", "cinema_id"],
+            include: [
+              {
+                model: Cinema,
+                attributes: ["id", "name"], // Lấy thông tin rạp chiếu
+              },
+            ],
+          },
+        ],
+      });
+  
+      const groupedByDate = showtimes.reduce((dateAcc, showtime) => {
+        const cinema = showtime.Room.Cinema;
+        if (!cinema) return dateAcc;
+  
+        const showDate = new Date(showtime.show_date);
+        const formattedDate = `${String(showDate.getDate()).padStart(2, "0")}-${String(
+          showDate.getMonth() + 1
+        ).padStart(2, "0")}`; // DD-MM
+  
+        const showDay = showDate.toLocaleDateString("vi-VN", { weekday: "long" });
+  
+        if (!dateAcc[formattedDate]) {
+          dateAcc[formattedDate] = { date: formattedDate, day: showDay, cinemas: {} };
+        }
+  
+        if (!dateAcc[formattedDate].cinemas[cinema.id]) {
+          dateAcc[formattedDate].cinemas[cinema.id] = {
+            cinema_id: cinema.id,
+            cinema_name: cinema.name,
+            showtimes: [],
+          };
+        }
+  
+        // Format giờ bắt đầu từ trường start_time (kiểu time string, ví dụ: '14:30:00')
+        const timeParts = showtime.start_time.split(":");
+        const showTime = `${timeParts[0].padStart(2, "0")}:${timeParts[1].padStart(2, "0")}`;
+  
+        dateAcc[formattedDate].cinemas[cinema.id].showtimes.push({
+          id: showtime.id,
+          time: showTime,
+          room_id: showtime.Room.id,
+          room_name: showtime.Room.name,
+        });
+  
+        // Sắp xếp theo giờ chiếu tăng dần
+        dateAcc[formattedDate].cinemas[cinema.id].showtimes.sort((a, b) =>
+          a.time.localeCompare(b.time)
+        );
+  
+        return dateAcc;
+      }, {});
+  
+      // Chuyển object sang mảng và sắp xếp theo ngày tăng dần
+      let result = Object.entries(groupedByDate)
+        .map(([_, { date, day, cinemas }]) => ({
+          date,
+          day,
+          cinemas: Object.values(cinemas),
+        }))
+        .sort((a, b) => {
+          const [dayA, monthA] = a.date.split("-").map(Number);
+          const [dayB, monthB] = b.date.split("-").map(Number);
+          const dateA = new Date(2025, monthA - 1, dayA);
+          const dateB = new Date(2025, monthB - 1, dayB);
+          return dateA - dateB;
+        });
+    
+      return { status: 200, message: "Get showtimes successfully", data: result };
+    } catch (error) {
+      console.error("Error fetching showtimes:", error.message);
+      throw error;
+    }
+  };
+  
+  
+  const getShowtimeByIdForBoxchat = async (id) => {
+    try {
+      const showtime = await Showtime.findOne({
+        where: { id },
+        include: [
+          {
+            model: Room,
+            attributes: ["id", "name", "cinema_id"], // Chỉ lấy cần thiết
+            include: [
+              {
+                model: Cinema,
+                attributes: ["id", "name"], // Lấy tên rạp
+              },
+            ],
+          },
+          {
+            model: Movie,
+            attributes: ["id", "name", "duration", "poster", "age_rating"], // Lấy thông tin phim
+          },
+        ],
+      });    
+  
+      if (!showtime) {
+        return { status: 404, message: "Showtime not found" };
+      }
+  
+      // Tách thời gian
+      const startTime = new Date(showtime.start_time);
+      const formattedStartTime = {
+        dayOfWeek: startTime.toLocaleDateString("vi-VN", { weekday: "long" }), // "Thứ Ba"
+        date: startTime.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }), // "11/03/2025"
+        time: startTime.toTimeString().slice(0, 5), // "16:12"
+      };
+      
+  
+      // Chuẩn bị kết quả
+      const response = {
+        status: 200,
+        message: "Get showtime success",
+        showtime: {
+          id: showtime.id,
+          start_time: formattedStartTime,
+          base_price: showtime.base_price,
+          room: {
+            id: showtime.Room?.id,
+            name: showtime.Room?.name,
+            cinema: {
+              id: showtime.Room?.Cinema?.id,
+              name: showtime.Room?.Cinema?.name,
+            },
+          },
+          movie: showtime.Movie,
+        },
+      };
+  
+      return response;
+    } catch (error) {
+      console.error("Error fetching showtime:", error.message);
+      throw error;
+    }
+  };
+
 module.exports = {
     getAllShowtime,
     getShowtimeById,
@@ -564,5 +778,11 @@ module.exports = {
     createShowtime,
     updateShowtime,
     getShowtimesByMovieIdForChat,
-    getShowtimesForUserByMovieId
+    getShowtimesForUserByMovieId,
+
+    getShowtimeByBranchIdForBoxchat,
+    getAllShowtimesForBoxchat,
+    getAllShowtimeForBoxchat,
+    getShowtimesByMovieIdForBoxchat,
+    getShowtimeByIdForBoxchat
 };

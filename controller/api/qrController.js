@@ -61,43 +61,28 @@ const generateQR = async (req, res) => {
 
 const scanQR = async (req, res) => {
   try {
-    const { ticketId } = req.body;
-
-    if (!ticketId) {
+    const { order_id } = req.body;
+    console.log("order_id controller", order_id);
+    if (!order_id) {
       return res.status(400).json({
         success: false,
-        message: "Mã vé là bắt buộc",
+        message: "Mã đơn hàng là bắt buộc",
       });
     }
 
     // Gọi service để quét mã QR
-    const scanResult = await qrService.scanQRCode(ticketId);
+    const scanResult = await qrService.scanQRCode(order_id);
 
-    // Nếu vé đã được sử dụng
-    if (scanResult.isUsed) {
-      return res.status(400).json({
-        success: false,
-        message: "Vé đã được quét trước đó",
-        ticket: scanResult.ticket,
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Vé đã được xác nhận quét thành công",
-      data: {
-        ticket: scanResult.ticket,
-      },
-    });
+   res.json(scanResult);
   } catch (error) {
     console.error("Lỗi khi quét mã QR:", error);
 
-    // Xử lý lỗi không tìm thấy vé
-    if (error.message === "Không tìm thấy vé") {
+    // Xử lý lỗi không tìm thấy đơn hàng
+    if (error.message === "Không tìm thấy đơn hàng") {
       return res.status(404).json({
         success: false,
         message: error.message,
-        ticketId: req.body.ticketId,
+        orderId: req.body.order_id,
       });
     }
 

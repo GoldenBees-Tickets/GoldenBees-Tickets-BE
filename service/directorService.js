@@ -107,10 +107,20 @@ const deleteDirector = async (id) => {
     }
 };
 
+const getAllDirectorsForBoxchat = async () => {
+    try {
+        return await Director.findAll();
+    } catch (error) {
+        console.error("Error fetching directors:", error.message);
+        throw error;
+    }
+};
+
 module.exports = {
     getAllDirectors,
     getDirector,
     createDirector,
     updateDirector,
     deleteDirector,
+    getAllDirectorsForBoxchat
 };

@@ -159,10 +159,30 @@ const deleteCombo = async (id) => {
     }
 };
 
+const getAllCombosForBoxchat = async () => {
+    try {
+        return await Combo.findAll({
+            include: [
+              {
+                model: ComboItem,
+                include: [
+                  {
+                    model: FoodAndDrink
+                  }
+                ]
+              }
+            ]
+          });
+    } catch (error) {
+        throw new Error(error.message || "Lỗi khi lấy danh sách combo");
+    }
+};
+
 module.exports = {
     getAllCombos,
     getCombo,
     createCombo,
     updateCombo,
-    deleteCombo
+    deleteCombo,
+    getAllCombosForBoxchat
 };

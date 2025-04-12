@@ -114,11 +114,21 @@ const deleteProducer = async (id) => {
   }
 };
 
+const getAllProducersForBoxchat = async () => {
+  try {
+    return await Producer.findAll();
+  } catch (error) {
+    console.error("Error fetching producers:", error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllProducers,
   getProducer,
   createProducer,
   updateProducer,
   deleteProducer,
+  getAllProducersForBoxchat
 };
 
