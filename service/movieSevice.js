@@ -45,56 +45,59 @@ const getMovie = async (id) => {
 
 const getAllMovies = async (options = {}) => {
   try {
-    const { page = 1, limit = 5, search = '', sort_order = 'desc' } = options;
-    
-    // Tính toán offset cho phân trang
+    const {
+      page = 1,
+      limit = 20,
+      search = '',
+      sort_order = 'desc',
+    } = options;
+
     const offset = (page - 1) * limit;
 
-    // Xây dựng điều kiện tìm kiếm
-    let whereClause = {};
+    // Điều kiện lọc
+    const whereClause = {};
 
-    // Tìm kiếm theo tên phim
     if (search) {
       whereClause.name = {
         [Op.like]: `%${search}%`,
       };
     }
 
-    // // Lọc theo trạng thái
-    // if (status) {
-    //   whereClause.status = status;
-    // }
+    // Chuẩn hóa thứ tự sắp xếp
+    const sortOrder = ['asc', 'desc'].includes(sort_order.toLowerCase())
+      ? sort_order.toUpperCase()
+      : 'DESC';
 
-    // Đếm tổng số phim thỏa mãn điều kiện (không sử dụng include)
-    const { count } = await Movie.findAndCountAll({
+    // Tìm và đếm tổng số phim + lấy danh sách
+    const { count, rows: movies } = await Movie.findAndCountAll({
       where: whereClause,
-      distinct: true,
-    });
-
-    // Lấy dữ liệu phim với phân trang, sắp xếp và các mối quan hệ
-    const movies = await Movie.findAll({
-      where: whereClause,
-      limit: limit,
-      offset: offset,
-      order: [["release_date", sort_order.toUpperCase()]],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [['release_date', sortOrder]],
       include: [
         {
           model: MovieGenre,
           include: [{ model: Genre }],
+          required: false,
         },
-        { model: Director },
+        {
+          model: Director,
+          required: false,
+        },
         {
           model: MovieActor,
           include: [{ model: Actor }],
+          required: false,
         },
         {
           model: MovieProducer,
           include: [{ model: Producer }],
+          required: false,
         },
       ],
+      distinct: true,
     });
 
-    // Tính toán thông tin phân trang
     const totalPages = Math.ceil(count / limit);
 
     return {
@@ -102,15 +105,16 @@ const getAllMovies = async (options = {}) => {
       pagination: {
         total: count,
         totalPages,
-        currentPage: page,
-        limit,
+        currentPage: parseInt(page),
+        limit: parseInt(limit),
       },
     };
   } catch (error) {
-    console.error("Error fetching movies:", error.message);
-    throw error;
+    console.error("Error fetching movies (admin):", error.message, error.stack);
+    throw new Error("Lỗi khi lấy danh sách phim cho admin: " + error.message);
   }
 };
+
 
 const getAllMoviesByUsers = async () => {
   try {
@@ -483,6 +487,31 @@ const getAllMoviesWithValidShowtimes = async () => {
   }
 };
 
+const getAllMoviesForBoxchat = async () => {
+  try {
+    return await Movie.findAll({
+      include: [
+        {
+          model: MovieGenre,
+          include: [{ model: Genre }],
+        },
+        { model: Director },
+        {
+          model: MovieActor,
+          include: [{ model: Actor }],
+        },
+        {
+          model: MovieProducer,
+          include: [{ model: Producer }],
+        },
+      ],
+    });
+  } catch (error) {
+    console.error("Error fetching movies:", error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllMovies,
   getMovie,
@@ -491,5 +520,6 @@ module.exports = {
   deleteMovieWithRelations,
   updateStatuses,
   getAllMoviesWithValidShowtimes,
-  getAllMoviesByUsers
+  getAllMoviesByUsers,
+  getAllMoviesForBoxchat
 };

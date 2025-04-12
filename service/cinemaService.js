@@ -111,6 +111,15 @@ const deleteCinema = async (id) => {
     }
 }
 
+const getAllCinemasForBoxchat = async () => {
+    try {
+        const cinemas = await Cinema.findAll();
+        return cinemas;
+    } catch (error) {
+        console.error("Error fetching list of cinemas", error.message);
+    }
+}
+
 module.exports = {
     getAllCinemas,
     getCinema,
@@ -118,4 +127,5 @@ module.exports = {
     createCinema,
     updateCinema,
     deleteCinema,
+    getAllCinemasForBoxchat
 };

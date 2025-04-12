@@ -112,10 +112,20 @@ const deleteGenre = async (id) => {
     }
 };
 
+const getAllGenresForBoxchat = async () => {
+    try {
+        return await Genre.findAll();
+    } catch (error) {
+        console.error("Error fetching genres:", error.message);
+        throw error;
+    }
+};
+
 module.exports = {
     getAllGenres,
     getGenre,
     createGenre,
     updateGenre,
     deleteGenre,
+    getAllGenresForBoxchat
 };

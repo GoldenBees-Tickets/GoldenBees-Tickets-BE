@@ -169,6 +169,14 @@ const checkPromotionCode = async ({code, user_id}) => {
   }
 };
 
+const getAllPromotionsForBoxchat = async () => {
+  try {
+    const promotions = await Promotion.findAll();
+    return promotions;
+  } catch (error) {
+    console.error("Error fetching promotions", error.message);
+  }
+};
 
 module.exports = {
   getAllPromotions,
@@ -177,4 +185,5 @@ module.exports = {
   updatePromotion,
   deletePromotion,
   checkPromotionCode,
+  getAllPromotionsForBoxchat
 };

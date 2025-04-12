@@ -6,6 +6,10 @@ const Ticket1 = db.Ticket1;
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 const {Order} = require("../models");
+const { where } = require("sequelize");
+const { error } = require("console");
+const { data } = require("autoprefixer");
+const { OrderDetail, Seat, Showtime, Movie, User } = require("../models");
 
 // Lấy thông tin email từ biến môi trường
 const EMAIL_ADMIN = process.env.EMAIL_ADMIN;
@@ -321,110 +325,62 @@ const generateQRCode = async ({
 };
 
 // Quét và xử lý mã QR
-const scanQRCode = async (ticketId) => {
+const scanQRCode = async (order_id) => {
   try {
-    if (!ticketId) {
-      throw new Error("Mã vé là bắt buộc");
+    console.log("Quét mã QR cho order_id:", order_id);
+    
+    if (!order_id) {
+      throw new Error("Mã đơn hàng là bắt buộc");
     }
 
-    // Kiểm tra xem bảng Ticket1 có tồn tại không
-    try {
-      // Kiểm tra tất cả vé trong bảng Ticket1
-      const allTickets = await Ticket1.findAll({ limit: 5 });
-    } catch (err) {
-      console.error("Error checking table:", err);
+    // Import models từ file models
+    const { Order, OrderDetail, Seat, Showtime, Movie } = require("../models");
+
+    // Tìm đơn hàng trong database
+    let order = await Order.findOne({
+      where: { id: order_id }
+    });
+
+    if (!order) {
+      throw new Error("Không tìm thấy đơn hàng");
     }
 
-    // Xử lý ticketId để đảm bảo tìm kiếm đúng định dạng
-    let queryId = ticketId;
-    if (typeof ticketId === "string" && !isNaN(ticketId)) {
-      // Nếu là string chứa số, chuyển đổi sang số nguyên
-      queryId = parseInt(ticketId, 10);
-    }
+    // Kiểm tra trạng thái đơn hàng
+    if (order.status === "paid") {
+      console.log("Cập nhật trạng thái đơn hàng từ 'paid' thành 'completed'");
+      
+      // Cập nhật trạng thái đơn hàng
+      order.status = "completed";
+      await order.save();
 
-    // Tìm vé trong database - sử dụng Sequelize
-    let ticket = await Ticket1.findByPk(queryId);
-
-    if (!ticket) {
-      // Thử tìm kiếm với cả hai kiểu dữ liệu
-      if (typeof queryId === "number") {
-        ticket = await Ticket1.findOne({ where: { id: queryId.toString() } });
-      } else if (typeof queryId === "string") {
-        const numericId = parseInt(queryId, 10);
-        if (!isNaN(numericId)) {
-          ticket = await Ticket1.findOne({ where: { id: numericId } });
-        }
-      }
-
-      // Thử tìm kiếm bằng cách truy vấn trực tiếp nếu các cách trên không thành công
-      if (!ticket) {
-        try {
-          const rawResults = await db.sequelize.query(
-            `SELECT * FROM ticket1s WHERE id = ?`,
-            {
-              replacements: [queryId],
-              type: db.sequelize.QueryTypes.SELECT,
-            }
-          );
-          if (rawResults.length > 0) {
-            ticket = Ticket1.build(rawResults[0], { isNewRecord: false });
-          }
-        } catch (err) {
-          console.error("Error in raw query:", err);
-        }
-      }
-
-      if (!ticket) {
-        throw new Error("Không tìm thấy vé");
-      }
-    }
-
-    // Kiểm tra trạng thái vé
-    if (ticket.status === "used") {
       return {
-        isUsed: true,
-        ticket: {
-          id: ticket.id,
-          status: ticket.status,
-          usedAt: ticket.usedAt,
-        },
+        status: 200,
+        success: true,
+        error: false,
+        message: "Quét vé thành công",
+        data: {
+          order: {
+            id: order.id,
+            status: order.status,
+            updatedAt: order.updatedAt
+          }
+        }
+      };
+    } else {
+      return {
+        status: 400,
+        success: false,
+        error: true,
+        message: `Đơn hàng đã được xử lý trước đó (${order.status})`,
+        data: {
+          order: {
+            id: order.id,
+            status: order.status,
+            updatedAt: order.updatedAt
+          }
+        }
       };
     }
-
-    // Cập nhật trạng thái vé thành đã quét
-    ticket.status = "used";
-    ticket.usedAt = new Date();
-
-    try {
-      await ticket.save();
-    } catch (saveError) {
-      console.error("Error saving ticket status:", saveError);
-      // Thử cập nhật bằng câu lệnh SQL trực tiếp
-      try {
-        await db.sequelize.query(
-          `UPDATE ticket1s SET status = 'used', usedAt = ? WHERE id = ?`,
-          {
-            replacements: [new Date(), ticket.id],
-            type: db.sequelize.QueryTypes.UPDATE,
-          }
-        );
-      } catch (sqlError) {
-        console.error("Error in raw update:", sqlError);
-        throw sqlError;
-      }
-    }
-
-    return {
-      isUsed: false,
-      ticket: {
-        id: ticket.id,
-        movieName: ticket.movieName,
-        showTime: ticket.showTime,
-        seat: ticket.seat,
-        status: "used",
-        usedAt: ticket.usedAt || new Date(),
-      },
-    };
   } catch (error) {
     console.error("Lỗi khi quét mã QR:", error);
     throw error;
