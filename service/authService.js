@@ -1,4 +1,4 @@
-const { User } = require("../models");
+const { User, sequelize } = require("../models");
 const bcrypt = require("bcryptjs");
 const _ = require("lodash");
 const jwt = require("jsonwebtoken");
@@ -27,7 +27,7 @@ const Login = async ({ email, password }) => {
     const check = await User.findOne({ where: { email } });
 
     if (!check) {
-      return { status: 401, success: false, error: true, message: "Sai tài khoản hoặc mật khẩu!" };
+      return { status: 401, success: false, error: true, message: "Email không tồn tại trong hệ thống!" };
     }
 
     if(check.dataValues.is_active === false) {
@@ -62,8 +62,8 @@ const Login = async ({ email, password }) => {
 
       return {
         status: 200,
-        success: false, 
-        error: true,
+        success: true, 
+        error: false,
         data: {
           accessToken,
           refreshToken,
@@ -100,13 +100,18 @@ const Register = async ({ username, email, password, image }) => {
     const salt = bcrypt.genSaltSync(10);
     password = bcrypt.hashSync(password, salt);
 
+    const transaction = await sequelize.transaction();
+
     const user = await User.create({ username, email, password, image });
 
     await sendEmailActiveAccount({email});
+    
+    await transaction.commit(); 
 
     const message = "Đăng ký thành công! Vui lòng kiểm tra email để xác thực.";
     return { status: 200, error: false, success: true, user, message };
   } catch (error) {
+    await transaction.rollback(); 
     console.error("Error regiter user", error.message);
     return { status: 500, error: true, success: false, message: "Internal Server Error" };
   }
@@ -162,7 +167,7 @@ const forgotPassword = async (email) => {
   try {
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return { status: 401, message: "Email không tồn tại trong hệ thống!" };
+      return { success: false, error: true, status: 404, message: "Email không tồn tại trong hệ thống!" };
     }
 
     const resetToken = jwt.sign(
@@ -181,6 +186,8 @@ const forgotPassword = async (email) => {
     }
 
     return {
+      success: true,
+      error: false,
       status: 200,
       message: "Vui lòng kiểm tra email để đặt lại mật khẩu!",
     };
@@ -302,8 +309,7 @@ const sendEmailActiveAccount = async ({ email}) => {
           <p style="font-size: 14px; color: #888; margin-top: 30px;">Trân trọng,<br/>Đội ngũ Bees Cinema</p>
         </div>
       `,
-    };
-
+    };    
     await transporter.sendMail(mailOptions);
     return { status: 200, success: true, error: false, message: "Email xác thực đã được gửi thành công!" };
   } catch (error) {

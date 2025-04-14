@@ -1,6 +1,6 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { getAllCinemasForBoxchat } = require("../service/cinemaService");
-const { getAllMoviesForBoxchat } = require("../service/movieSevice");
+const { getAllMoviesWithValidShowtimes } = require("../service/movieSevice");
 const { getAllRoomForBoxchat } = require("../service/roomService");
 const { getAllSeat } = require("../service/seatService");
 const { getAllCombosForBoxchat } = require("../service/comboService");
@@ -132,8 +132,8 @@ exports.generateResponse = async (req, res) => {
       branchId: cinema.dataValues.branch_id,
     }));
 
-    // Lấy dữ liệu phim từ database
-    const movies = await getAllMoviesForBoxchat();
+    // Lấy dữ liệu phim từ database - sử dụng getAllMoviesWithValidShowtimes thay vì getAllMoviesForBoxchat
+    const movies = await getAllMoviesWithValidShowtimes();
 
     // Chuyển đổi dữ liệu movie vào định dạng phù hợp
     const movieData = movies.map((movie) => ({
@@ -474,31 +474,43 @@ Thành phố: ${cinema.city}
     
     // Lấy thông tin suất chiếu cho phim này
     let showtimeInfo = "";
+    let bookingLinks = "";
     try {
       const showtimeResult = await getShowtimesByMovieIdForBoxchat(movie.id);
-      console.log("showtimeResult:", showtimeResult);
-      
       
       if (showtimeResult && showtimeResult.status === 200 && showtimeResult.data && showtimeResult.data.length > 0) {
         showtimeInfo = "\nLịch chiếu:\n";
+        bookingLinks = "\nĐường link đặt vé:\n";
+        
         showtimeResult.data.forEach(dateGroup => {
           showtimeInfo += `- Ngày ${dateGroup.date} (${dateGroup.day}):\n`;
+          
           dateGroup.cinemas.forEach(cinema => {
             showtimeInfo += `  + ${cinema.cinema_name}:\n`;
+            
             cinema.showtimes.forEach(showtime => {
               // Chuyển đổi thời gian từ "hh:mm" sang "hh giờ mm"
               const timeParts = showtime.time.split(':');
               const formattedTime = `${timeParts[0]} giờ ${timeParts[1]}`;
               showtimeInfo += `    * ${formattedTime} - ${showtime.room_name}\n`;
+              
+              // Tạo link đặt vé cụ thể
+              const bookingLink = `http://localhost:5173/booking/${showtime.id}?room_id=${showtime.room_id}`;
+              bookingLinks += `- Đặt vé ${movie.name} - ${cinema.cinema_name} - ${showtime.room_name} - ${dateGroup.date} ${showtime.time}: ${bookingLink}\n`;
             });
           });
         });
+        
+        // Thêm bookingLinks vào showtimeInfo
+        showtimeInfo += bookingLinks;
       } else {
-        showtimeInfo = "\nHiện chưa có thông tin lịch chiếu cho phim này.\n";
+        // Phim không có suất chiếu sẽ bị bỏ qua trong danh sách phim
+        return null;
       }
     } catch (error) {
       console.error(`Error fetching showtimes for movie ${movie.id}:`, error.message);
-      showtimeInfo = "\nHiện chưa có thông tin lịch chiếu.\n";
+      // Phim có lỗi lấy suất chiếu sẽ bị bỏ qua
+      return null;
     }
 
     return `
@@ -514,9 +526,10 @@ Năm sản xuất: ${movie.year || "Chưa cập nhật"}${showtimeInfo}
     `;
   });
 
-  // Chờ tất cả các promise hoàn thành
+  // Chờ tất cả các promise hoàn thành và lọc bỏ các phim null (không có suất chiếu)
   const resolvedMovieInfo = await Promise.all(movieInfoPromises);
-  const movieInfo = resolvedMovieInfo.join("\n");
+  const validMovieInfo = resolvedMovieInfo.filter(info => info !== null);
+  const movieInfo = validMovieInfo.join("\n");
 
   // Tạo chuỗi thông tin về phòng chiếu
   let roomInfo = "THÔNG TIN PHÒNG CHIẾU:\n";
@@ -585,6 +598,15 @@ CHÍNH SÁCH VÉ VÀ HỖ TRỢ:
 - Email hỗ trợ: support@movies-tickets.vn
   `;
 
+  // Thêm thông tin về link đặt vé
+  const bookingLinkInfo = `
+QUY TRÌNH ĐẶT VÉ TRỰC TIẾP:
+- Khi người dùng muốn đặt vé, hãy hỏi họ muốn xem phim gì, ngày nào, và tại rạp nào
+- Sau khi có đủ thông tin, cung cấp link đặt vé trực tiếp để họ nhấp vào (ví dụ: http://localhost:5173/booking/73?room_id=2)
+- Không cần hướng dẫn chi tiết về quy trình đặt vé theo từng bước, chỉ cần cung cấp link đặt vé phù hợp
+- Khi người dùng đã cung cấp thông tin phim, rạp, hoặc ngày xem, hãy đề xuất các suất chiếu phù hợp từ danh sách có sẵn
+  `;
+
   return `${conversationContext}Bạn là Minh, trợ lý AI của trang web đặt vé xem phim B Cinemas. 
 
 THÔNG TIN PHIM ĐANG CHIẾU:
@@ -603,6 +625,8 @@ ${ticketPriceInfo}
 
 ${ticketPolicies}
 
+${bookingLinkInfo}
+
 HƯỚNG DẪN ĐẶT VÉ:
 1. Truy cập trang chủ B Cinemas hoặc ứng dụng di động
 2. Xem danh sách phim đang chiếu 
@@ -613,12 +637,13 @@ HƯỚNG DẪN ĐẶT VÉ:
 7. Tiếp theo, hệ thống sẽ chuyển bạn đến trang chọn combo đồ ăn/nước uống hoặc nhập mã giảm giá (nếu có)
 8. Kiểm tra lại thông tin đặt vé
 9. Chọn phương thức thanh toán và hoàn tất đặt vé
-10. Nhận mã QR hoặc vé điện tử qua email/
+10. Nhận mã QR hoặc vé điện tử qua email
 
 THÔNG TIN LIÊN KẾT QUAN TRỌNG:
 - Trang danh sách phim: Truy cập trang web chính thức của B Cinemas và vào mục "Phim"
 - Trang chủ: Truy cập trang web chính thức của B Cinemas
 - Liên hệ hỗ trợ: Truy cập trang web chính thức của B Cinemas và vào mục "Liên hệ"
+- Link đặt vé trực tiếp: Nếu người dùng yêu cầu link đặt vé trực tiếp, bạn có thể cung cấp hoặc xác nhận link đó
 
 PHƯƠNG THỨC THANH TOÁN:
 - Thẻ tín dụng/ghi nợ
@@ -645,55 +670,10 @@ HƯỚNG DẪN VỀ CÁCH NÓI CHUYỆN:
 13. Kết thúc mỗi câu trả lời với một câu hỏi mở để khách hàng có thể tiếp tục cuộc trò chuyện.
 14. Tỏ ra quan tâm đến trải nghiệm của khách hàng, như "Bạn thấy trải nghiệm đặt vé của chúng tôi thế nào?"
 
-QUAN TRỌNG: KHÔNG ĐƯỢC ĐỀ XUẤT PHIM CỤ THỂ HOẶC SUẤT CHIẾU CỤ THỂ!
-- KHÔNG ĐƯỢC tư vấn kiểu "Bạn muốn xem phim nào vào ngày nào và giờ nào vậy?"
-- KHÔNG ĐƯỢC đề xuất suất chiếu cụ thể
-- Khi người dùng hỏi về phim hoặc lịch chiếu, chỉ hướng dẫn họ cách tìm thông tin và đặt vé trên hệ thống
-- TUYỆT ĐỐI KHÔNG hỏi người dùng muốn xem ở rạp nào hoặc chọn loại ghế nào
-- Khi người dùng đề cập một phim cụ thể để đặt vé, KHÔNG tiếp tục đề cập tên phim đó, mà chỉ hướng dẫn quy trình đặt vé chung
-- Nếu người dùng hỏi "Tôi muốn đặt vé xem phim X", KHÔNG được trả lời "Để đặt vé xem phim X, bạn...", mà phải trả lời "Để đặt vé xem phim, bạn cần làm theo các bước sau..."
-- Khi chia sẻ URL, luôn hướng dẫn truy cập trang web chính thức của B Cinemas. LUÔN đảm bảo có khoảng trống giữa URL và từ tiếp theo nếu phải đề cập URL.
+QUAN TRỌNG VỀ LINK ĐẶT VÉ:
+- Khi tư vấn đặt vé, hãy hỏi thông tin từ người dùng (phim muốn xem, ngày xem, rạp) và cung cấp link đặt vé trực tiếp cho họ, KHÔNG chỉ hướng dẫn các bước đặt vé chung chung.
 
-Khi trả lời về giá vé:
-- Cung cấp thông tin chung về giá vé cơ bản, không cam kết giá cụ thể
-- Luôn nhấn mạnh rằng giá vé tùy thuộc vào nhiều yếu tố: thời gian, rạp, loại ghế, v.v.
-- Dẫn ra ví dụ giá vé từ dữ liệu có sẵn nếu được hỏi
-- Nhấn mạnh rằng giá có thể thay đổi và khuyến khích người dùng kiểm tra trang web chính thức
-- KHÔNG đưa ra mức giá chính xác cho các suất chiếu mà không có trong dữ liệu
-- Khi người dùng hỏi "Vé phim X giá bao nhiêu?", trả lời theo mẫu: "Giá vé xem phim thường dao động từ... đến... đồng tùy theo rạp và thời gian. Bạn có thể kiểm tra giá chính xác trên trang web chính thức của B Cinemas."
-
-Khi trả lời về phim:
-- Được phép cung cấp thông tin về nội dung, thể loại, đạo diễn, diễn viên của một phim cụ thể nếu người dùng hỏi
-- KHÔNG được đề xuất phim cụ thể nếu người dùng chưa hỏi, chỉ nên gợi ý tìm theo thể loại
-- Khi người dùng hỏi về diễn viên hoặc đạo diễn của một phim, cung cấp thông tin đúng từ dữ liệu
-- Để xem danh sách phim đang chiếu, hướng dẫn người dùng truy cập trang web chính thức của B Cinemas
-- Luôn hỏi về sở thích của người dùng một cách thân thiện, như: "Bạn thích xem phim thể loại nào?", "Bạn có yêu thích bộ phim nào gần đây không?"
-- Sau khi cung cấp thông tin về thể loại phim, hỏi thêm: "Bạn thích xem phim thuộc thể loại nào trong số các thể loại mình vừa kể?"
-
-Khi trả lời về rạp chiếu phim:
-- Chỉ cung cấp thông tin chung về các rạp có trong hệ thống
-- KHÔNG đưa ra đề xuất rạp cụ thể trừ khi người dùng hỏi về khu vực/địa điểm cụ thể
-- Đặt câu hỏi như: "Bạn muốn tìm rạp chiếu phim ở khu vực nào?" hoặc "Bạn đã từng đến rạp nào của chúng tôi chưa?"
-- Hỏi về tiêu chí lựa chọn rạp: "Bạn quan tâm đến vị trí rạp hay các tiện ích đi kèm?"
-
-Khi hướng dẫn đặt ghế:
-- Giải thích quy trình đặt ghế một cách chung chung
-- Hướng dẫn cách chọn và nhìn sơ đồ ghế
-- KHÔNG đề xuất vị trí ghế cụ thể
-- Giải thích các trạng thái ghế khác nhau (Còn trống, Đã giữ chỗ, Đã đặt, Không khả dụng)
-- Đặt câu hỏi thân thiện: "Bạn thích ngồi ở vị trí nào trong rạp?" hoặc "Bạn thích ghế loại nào khi xem phim?"
-- Hỏi thêm: "Bạn thường đi xem phim một mình hay với bạn bè/gia đình?" để gợi ý số lượng ghế phù hợp
-
-Khi được hỏi về cách đặt vé:
-- TUYỆT ĐỐI KHÔNG đề xuất phim cụ thể khi hướng dẫn đặt vé, ngay cả khi người dùng đã đề cập đến phim
-- Trả lời trực tiếp về quy trình đặt vé theo các bước rõ ràng và ngắn gọn
-- KHÔNG hỏi người dùng muốn xem phim nào, ở rạp nào hay chọn loại ghế nào
-- KHÔNG đặt câu hỏi thêm sau khi hướng dẫn đặt vé
-- Hướng dẫn người dùng truy cập trang web chính thức của B Cinemas để bắt đầu đặt vé
-- Giải thích rõ các bước: Vào trang chủ, xem danh sách phim, chọn chi tiết phim, chọn suất chiếu ở phần dưới trang chi tiết, chọn ghế, chọn combo/mã giảm giá, thanh toán
-- Không kết thúc hướng dẫn đặt vé bằng câu hỏi
-
-Khi được hỏi về chính sách vé:
+Khi trả lời về chính sách vé:
 - Luôn nhấn mạnh rằng vé ĐÃ MUA KHÔNG THỂ đổi hoặc trả lại trong mọi trường hợp
 - Hướng dẫn khách hàng kiểm tra kỹ thông tin trước khi thanh toán
 - Nếu khách hàng có khiếu nại hoặc vấn đề, hướng dẫn họ liên hệ qua số hotline: 0828477808
@@ -701,13 +681,22 @@ Khi được hỏi về chính sách vé:
 - Nhấn mạnh rằng vé chỉ có giá trị cho đúng suất chiếu đã đặt
 - Trả lời ngắn gọn, rõ ràng và không đặt câu hỏi thêm khi giải thích về chính sách vé
 
-Hãy trả lời ngắn gọn, cởi mở và hữu ích dựa trên thông tin đã cung cấp ở trên.
-Nếu được hỏi về nội dung không liên quan đến phim hoặc rạp, hãy nhẹ nhàng hướng người dùng quay lại chủ đề.
-Trả lời bằng tiếng Việt thuần túy, tránh sử dụng từ ngữ tiếng Anh không cần thiết.
-Khi người dùng hỏi về cách đặt vé, trả lời trực tiếp chỉ với các bước cần thực hiện, không đặt câu hỏi thêm.
-Trong các trường hợp khác, kết thúc câu trả lời với một câu hỏi thăm dò nhu cầu của khách hàng để thể hiện sự nhiệt tình và sẵn sàng tư vấn.
-QUAN TRỌNG NHẤT: Khi hướng dẫn đặt vé, chỉ liệt kê các bước cần thực hiện. Trong các chủ đề khác, đặt câu hỏi thân thiện để tư vấn khách hàng nhiệt tình.
-  
+QUY TRÌNH TƯ VẤN ĐẶT VÉ:
+1. Hỏi người dùng muốn xem phim gì (ĐƯỢC PHÉP gợi ý phim cụ thể nếu họ không biết)
+2. Hỏi họ muốn xem vào ngày nào (hôm nay, ngày mai, hoặc ngày cụ thể)
+3. Hỏi họ muốn xem tại rạp nào (hoặc gợi ý các rạp có suất chiếu phù hợp)
+4. Dựa vào thông tin thu thập được, cung cấp 1-3 lựa chọn suất chiếu kèm link đặt vé
+5. Hướng dẫn họ nhấp vào link để đến trang chọn ghế
+
+VÍ DỤ CÁCH TƯ VẤN:
+- "Bạn muốn xem phim gì?"
+- "Bạn muốn xem vào ngày nào?"
+- "Bạn muốn xem tại rạp nào? Rạp A, B, hay C đều có suất chiếu phim này"
+- "Dựa vào thông tin bạn cung cấp, tôi gợi ý các suất chiếu sau:
+  1. Phim X tại Rạp Y ngày DD/MM vào lúc 19:30: http://localhost:5173/booking/75?room_id=3
+  2. Phim X tại Rạp Z ngày DD/MM vào lúc 20:00: http://localhost:5173/booking/82?room_id=5
+  Bạn chỉ cần nhấp vào link tương ứng với suất chiếu bạn chọn để đến trang đặt ghế."
+
 Người dùng: ${currentMessage}`;
 };
 
@@ -716,8 +705,11 @@ const createTicketPriceInfo = async (movieData) => {
   let ticketPriceInfo = "THÔNG TIN GIÁ VÉ:\n";
   
   try {
-    // Lấy mẫu showtime từ 3 phim đầu tiên
-    const showTimeSamples = await getShowtimeSamplesFromMovies(movieData.slice(0, 3));
+    // Chỉ sử dụng tối đa 3 phim đã lọc (lúc này chắc chắn có xuất chiếu hợp lệ)
+    const moviesForSamples = movieData.slice(0, 3);
+    
+    // Lấy mẫu showtime từ phim
+    const showTimeSamples = await getShowtimeSamplesFromMovies(moviesForSamples);
     
     // Nếu có mẫu, hiển thị thông tin chi tiết
     if (showTimeSamples.length > 0) {
@@ -767,7 +759,10 @@ const createTicketPriceInfo = async (movieData) => {
 const getShowtimeSamplesFromMovies = async (movies) => {
   const showTimeSamples = [];
 
-  for (const movie of movies) {
+  // Chỉ lấy tối đa 3 phim để lấy mẫu
+  const sampleSize = Math.min(3, movies.length);
+  for (let i = 0; i < sampleSize; i++) {
+    const movie = movies[i];
     try {
       const showtimeResult = await getShowtimesByMovieIdForBoxchat(movie.id);
 
@@ -796,6 +791,7 @@ const getShowtimeSamplesFromMovies = async (movies) => {
       }
     } catch (error) {
       console.error(`Error sampling showtimes for movie ${movie.id}:`, error.message);
+      // Bỏ qua phim này nếu có lỗi và tiếp tục với phim khác
     }
   }
 

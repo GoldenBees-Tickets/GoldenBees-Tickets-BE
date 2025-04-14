@@ -107,7 +107,7 @@ const updateUser = async ({ id, ...data }) => {
     const checkUser = await User.findOne({ where: { id } });
     
     if (!checkUser) {
-      return { status: 404, message: "Người dùng không tồn tại!" };
+      return { status: 404, message: "Người dùng không tồn tại!", success: false, error: true };
     }
 
     const updateFields = {};
@@ -119,7 +119,7 @@ const updateUser = async ({ id, ...data }) => {
       if(data.userData.password) {
         const checkPass = bcrypt.compareSync(data.userData.password, checkUser.password);
         if (!checkPass) {
-          return { status: 401, message: "Mật khẩu không đúng!" };
+          return { status: 401, message: "Mật khẩu không đúng!", success: false, error: true };
         }
       }
       updateFields.password = bcrypt.hashSync(data.userData.newPassword, 10); 
@@ -127,13 +127,13 @@ const updateUser = async ({ id, ...data }) => {
 
     if (Object.keys(updateFields).length > 0) {
       await User.update(updateFields, { where: { id } });
-      return { status: 200, message: "Cập nhật thành công", updatedFields: updateFields };
+      return { status: 200, message: "Cập nhật thành công", updateFields, success: true, error: false };
     }
 
-    return { status: 400, message: "Không có dữ liệu để cập nhật!" };
+    return { status: 400, message: "Không có dữ liệu để cập nhật!", success: false, error: true };
   } catch (error) {
     console.error("Error fetching User", error);
-    throw new Error("Error", error.message);
+    return { status: 500, message: error.message, success: false, error: true };
   }
 };
 
