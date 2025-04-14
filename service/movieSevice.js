@@ -336,32 +336,19 @@ async function getMovieStatus(movie, showtimes) {
 
   // Phim rất gần ngày phát hành (0-7 ngày tới)
   if (daysUntilRelease <= 7) {
-    // Nếu có lịch chiếu hôm nay hoặc sắp tới: đánh dấu là đang chiếu (chiếu sớm)
     if (hasUpcomingShowtime) {
       const hasImmediateShowtime = showtimes.some((s) => {
         const showtimeDate = new Date(s.show_date);
         showtimeDate.setHours(0, 0, 0, 0);
-        // Lịch chiếu trong vòng 3 ngày tới
-        return (
-          showtimeDate >= today &&
-          Math.round((showtimeDate - today) / (1000 * 60 * 60 * 24)) <= 3
-        );
+        const diff = Math.floor((showtimeDate - today) / (1000 * 60 * 60 * 24));
+        return diff >= 0 && diff <= 3;
       });
-
-      if (hasImmediateShowtime) {
-        return "now_showing"; // Có lịch chiếu trong 3 ngày tới = đang chiếu
-      }
+  
+      return hasImmediateShowtime ? "opening_soon" : "coming_soon";
     }
-    return "opening_soon";
+    return "coming_soon";
   }
 
-  // Phim gần ngày phát hành (8-14 ngày)
-  if (daysUntilRelease <= 14) {
-    // Nếu có lịch chiếu: sắp chiếu, ngược lại: sắp ra mắt
-    return hasUpcomingShowtime ? "opening_soon" : "coming_soon";
-  }
-
-  // Phim còn xa ngày chiếu (>14 ngày)
   return "coming_soon";
 }
 

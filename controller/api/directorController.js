@@ -53,9 +53,7 @@ class ApiDirectorController {
         try {
 
             const { name, dob, bio, gender } = req.body;
-            const file = req.file;
-            console.log("File:", file);
-            
+            const file = req.file;            
             const uploadFileName = file.originalname.split('.')[0]; // Lấy tên file không có đuôi
 
             const profile_picture = await uploadToCloudinary(file, uploadFolder, uploadFileName);
@@ -77,10 +75,8 @@ class ApiDirectorController {
         try {
             const { id } = req.params;
             const { name, dob, bio, gender } = req.body;
-                console.log("File data:", { name, dob, bio, gender });
                 
             const file = req.file;
-            console.log("File update:", file);
             if(file) {
                 const uploadFileName = file.originalname.split('.')[0]; // Lấy tên file không có đuôi
 
