@@ -9,6 +9,7 @@ const AuthorizationAdmin = require("../../middleware/authorizationAdmin");
 const upload = require("../../utils/multer");
 
 router.get("/", AuthorizationAdmin, ApiUserController.index);
+router.get("/star/:id", Authorization, ApiUserController.getStarUserController);
 router.get("/admin_branches", AuthorizationAdmin, ApiUserController.getAdminBranches);
 router.post("/", AuthorizationAdmin, ApiUserController.create);
 router.get("/:id", ApiUserController.show);
