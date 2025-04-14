@@ -5,6 +5,7 @@ const AuthorizationBranchAdmin = require("../../middleware/authorizationBranchAd
 const AuthorizationAdmin = require("../../middleware/authorizationAdmin");
 
 router.get("/", ApiCenimaController.index);
+router.get("/getAll", ApiCenimaController.getAllCinemaNoPagination);
 router.get("/:id", ApiCenimaController.show);
 router.get("/branch/:id", ApiCenimaController.getByBranchId);
 router.post("/", AuthorizationBranchAdmin, ApiCenimaController.create);

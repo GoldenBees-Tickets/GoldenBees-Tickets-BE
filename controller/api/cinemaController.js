@@ -1,5 +1,5 @@
 const { resErrors, resData } = require("../common/common");
-const { getAllCinemas, createCinema, updateCinema, deleteCinema, getCinema, getCinemaByBranchId } = require("../../service/cinemaService");
+const { getAllCinemas, createCinema, updateCinema, deleteCinema, getCinema, getCinemaByBranchId, getAllCinemasNotPagination } = require("../../service/cinemaService");
 
 class ApiCinemaController {
     static async index(req, res) {
@@ -91,6 +91,16 @@ class ApiCinemaController {
             }
         } catch (error) {
             console.error("Error deleting cinema", error.message);
+            resErrors(res, 500, error.message || "Internal Server Error");
+        }
+    }
+
+    static async getAllCinemaNoPagination(req, res) {
+        try {
+            const data = await getAllCinemasNotPagination();
+            res.json(data);
+        } catch (error) {
+            console.error("Error fetching all cinemas", error.message);
             resErrors(res, 500, error.message || "Internal Server Error");
         }
     }

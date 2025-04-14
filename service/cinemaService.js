@@ -1,6 +1,7 @@
 const { where } = require("sequelize");
 const { Cinema } = require("../models");
 const { Op } = require('sequelize');
+const { error } = require("console");
 
 // Lấy tất cả các cinema
 const getAllCinemas = async (options = {}) => {
@@ -47,6 +48,21 @@ const getAllCinemas = async (options = {}) => {
                 currentPage: page,
                 limit
             }
+        };
+    } catch (error) {
+        console.error("Error fetching list of cinemas", error.message);
+        throw error;
+    }
+}
+
+const getAllCinemasNotPagination = async () => {
+    try {
+        const data = await Cinema.findAll();
+        return {
+            status: 200,
+            success: true,
+            error: false,
+            data
         };
     } catch (error) {
         console.error("Error fetching list of cinemas", error.message);
@@ -127,5 +143,6 @@ module.exports = {
     createCinema,
     updateCinema,
     deleteCinema,
-    getAllCinemasForBoxchat
+    getAllCinemasForBoxchat,
+    getAllCinemasNotPagination
 };

@@ -1,5 +1,5 @@
 const { resErrors, resData } = require("../common/common");
-const { getAllGenres, getGenre, createGenre, updateGenre, deleteGenre } = require("../../service/genreService");
+const { getAllGenres, getGenre, createGenre, updateGenre, deleteGenre, getAllGenresForDashboard } = require("../../service/genreService");
 
 class ApiGenreController {
     static async index(req, res) {
@@ -55,6 +55,16 @@ class ApiGenreController {
             res.json(result);
         } catch (error) {
             console.error("Error deleting genre:", error);
+            resErrors(res, 500, error.message || "Internal Server Error");
+        }
+    }
+
+    static async getAllForDashboard(req, res) {
+        try {
+            const data = await getAllGenresForDashboard();
+            res.json(data);
+        } catch (error) {
+            console.error("Error fetching genres:", error.message);
             resErrors(res, 500, error.message || "Internal Server Error");
         }
     }
