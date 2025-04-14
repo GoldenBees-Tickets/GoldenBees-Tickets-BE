@@ -1,3 +1,4 @@
+const { error } = require("console");
 const {
   getAllUsers,
   getUser,
@@ -79,7 +80,7 @@ class ApiUserController {
       let userData = {};
 
       if (!checkUser) {
-        return resErrors(res, 404, "User not found");
+        return {status: 404, message: "User not found", error: true, success: false};
       }
 
       const file = req?.file || "";
@@ -101,9 +102,8 @@ class ApiUserController {
         };
       }
 
-      const user = await updateUser({ id, userData });
-      const message = "Get user is successfully";
-      res.json({ message, user });
+      const data = await updateUser({ id, userData });
+      res.json(data);
     } catch (error) {
       console.error("Error creating user:", error);
       resErrors(res, 500, error.message || "Internal Server Error");

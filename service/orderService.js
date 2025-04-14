@@ -37,7 +37,7 @@ const getOrderByUserId = async (user_id) => {
       include: [
         {
           model: Showtime,
-          attributes: ["id", "start_time"],
+          attributes: ["id", "start_time", "show_date"],
           include: [
             {
               model: Movie,
@@ -57,6 +57,7 @@ const getOrderByUserId = async (user_id) => {
         },
       ],
       where: { user_id },
+      order: [["order_date", "DESC"]], 
     });
     return { status: 200, success: true, error: null, data: orders };
   } catch (error) {

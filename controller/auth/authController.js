@@ -58,12 +58,7 @@ class ApiAuthController {
       let { username, email, password } = req.body;
       const image = null;
       let data = await Register({username, email, password, image});
-      
-      if(data.status == 200) {
-        res.json(data);
-      } else {
-        res.json(data)
-      }
+      res.json(data);
     } catch (error) {
       console.error("Error creating user:", error);
       resErrors(res, 500, error.message || "Internal Server Error");
