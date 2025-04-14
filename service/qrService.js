@@ -334,11 +334,47 @@ const scanQRCode = async (order_id) => {
     }
 
     // Import models từ file models
-    const { Order, OrderDetail, Seat, Showtime, Movie } = require("../models");
+    const { Order, Ticket, Seat, Showtime, Movie, Room, Cinema } = require("../models");
 
     // Tìm đơn hàng trong database
-    let order = await Order.findOne({
-      where: { id: order_id }
+    // let order = await Order.findOne({
+    //   where: { id: order_id }
+    // });
+    const order = await Order.findOne({
+      include: [
+        {
+          model: Ticket,
+          attributes: ["id"], // bạn có thể lấy thêm thông tin nếu cần
+          include: [
+            {
+              model: Seat,
+              attributes: ["seat_row", "seat_number"],
+            },
+          ],
+        },
+        {
+          model: Showtime,
+          attributes: ["id", "start_time", "show_date"],
+          include: [
+            {
+              model: Movie,
+              attributes: ["name", "poster", "age_rating", "duration"],
+            },
+            {
+              model: Room,
+              attributes: ["name"],
+              include: [
+                {
+                  model: Cinema,
+                  attributes: ["name"],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      where: { id: order_id },
+      order: [["order_date", "DESC"]],
     });
 
     if (!order) {
@@ -358,13 +394,7 @@ const scanQRCode = async (order_id) => {
         success: true,
         error: false,
         message: "Quét vé thành công",
-        data: {
-          order: {
-            id: order.id,
-            status: order.status,
-            updatedAt: order.updatedAt
-          }
-        }
+        data: order
       };
     } else {
       return {
