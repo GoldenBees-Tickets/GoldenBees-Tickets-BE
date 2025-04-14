@@ -29,9 +29,7 @@ class ApiMovieController {
   }
 
   static async getAll(req, res) {
-    try {
-      console.log("Fetching all movies...");
-      
+    try {      
       const movies = await getAllMoviesByUsers();
       res.json(movies);
     } catch (error) {
@@ -184,9 +182,7 @@ class ApiMovieController {
       const validMovies = movies.filter(movie => 
         movie.Showtimes && movie.Showtimes.length > 0
       );
-      
-      console.log(`API getMoviesWithValidShowtimes trả về ${validMovies.length}/${movies.length} phim có xuất chiếu hợp lệ`);
-      
+          
       res.json({
         message: "Movies with valid showtimes retrieved successfully",
         movies: validMovies
@@ -206,9 +202,7 @@ class ApiMovieController {
       const validMovies = movies.filter(movie => 
         movie.Showtimes && movie.Showtimes.length > 0
       );
-      
-      console.log(`API getAllMovies trả về ${validMovies.length}/${movies.length} phim có xuất chiếu hợp lệ`);
-      
+            
       res.json({
         message: "Movies retrieved successfully",
         movies: validMovies

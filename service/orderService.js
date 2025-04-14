@@ -36,6 +36,16 @@ const getOrderByUserId = async (user_id) => {
     const orders = await Order.findAll({
       include: [
         {
+          model: Ticket,
+          attributes: ["id"], // bạn có thể lấy thêm thông tin nếu cần
+          include: [
+            {
+              model: Seat,
+              attributes: ["seat_row", "seat_number"],
+            },
+          ],
+        },
+        {
           model: Showtime,
           attributes: ["id", "start_time", "show_date"],
           include: [
@@ -57,7 +67,8 @@ const getOrderByUserId = async (user_id) => {
         },
       ],
       where: { user_id },
-      order: [["order_date", "DESC"]], 
+      attributes: ["id", "order_date", "qr_code", "refund_status", "status", "showtime_id", "total"],
+      order: [["order_date", "DESC"]],
     });
     return { status: 200, success: true, error: null, data: orders };
   } catch (error) {

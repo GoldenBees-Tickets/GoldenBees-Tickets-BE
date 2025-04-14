@@ -2,11 +2,34 @@ const { error } = require("console");
 const { Promotion, PromotionUsage } = require("../models");
 const { Op } = require("sequelize");
 
-// Lấy tất cả các chương trình khuyến mãi với phân trang, tìm kiếm và sắp xếp
-const getAllPromotions = async (options = {}) => {
+const getAllPromotionActiveForUser = async () => {
   try {
-    const { page = 1, limit = 10, search = '', sort_order = 'desc' } = options;
-    
+    const now = new Date();
+
+    const promotions = await Promotion.findAll({
+      where: {
+        start_date: { [Op.lte]: now },
+        end_date: { [Op.gte]: now },
+      },
+    });
+    return {
+      success: true,
+      data: promotions,
+      error: false,
+      status: 200
+    };
+  } catch (error) {
+    console.error("Lỗi khi lấy promotion:", error);
+    return [];
+  }
+};
+// Lấy tất cả các chương trình khuyến mãi với phân trang, tìm kiếm và sắp xếp
+const getAllPromotions = async ({page, limit, search, sort_order}) => {
+  try {
+    if(!page) {
+      const data = await getAllPromotionActiveForUser();
+      return data;
+    }
     // Tính offset cho phân trang
     const offset = (page - 1) * limit;
     
@@ -41,6 +64,10 @@ const getAllPromotions = async (options = {}) => {
     
     // Trả về dữ liệu kèm thông tin phân trang
     return {
+      success: true,
+      error: false,
+      status: 200,
+      message: "Get promotions successfully",
       items: promotions,
       pagination: {
         total: count,
