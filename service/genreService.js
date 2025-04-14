@@ -37,6 +37,22 @@ const getAllGenres = async (page = 1, limit = 5, search = '') => {
     }
 };
 
+const getAllGenresForDashboard = async () => {
+    try {
+        const data = await Genre.findAll({
+            order: [['createdAt', 'DESC']]
+        });
+        return {
+            status: 200,
+            success: true,
+            error: null,
+            data,
+        };
+    } catch (error) {
+        console.error("Error fetching list genres", error);
+        throw error;
+    }
+}
 // Lấy thể loại phim theo ID
 const getGenre = async (id) => {
     try {
@@ -127,5 +143,6 @@ module.exports = {
     createGenre,
     updateGenre,
     deleteGenre,
-    getAllGenresForBoxchat
+    getAllGenresForBoxchat,
+    getAllGenresForDashboard
 };

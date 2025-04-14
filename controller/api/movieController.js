@@ -8,6 +8,7 @@ const {
   updateStatuses,
   getAllMoviesWithValidShowtimes,
   getAllMoviesByUsers,
+  getAllMoviesByAdmin,
 } = require("../../service/movieSevice");
 
 const { uploadToCloudinary, deleteFromCloudinary } = require("../../utils/cloudinary");
@@ -31,6 +32,16 @@ class ApiMovieController {
   static async getAll(req, res) {
     try {      
       const movies = await getAllMoviesByUsers();
+      res.json(movies);
+    } catch (error) {
+      console.error("Error fetching movies:", error.message);
+      resErrors(res, 500, "Internal Server Error");
+    }
+  }
+
+  static async getAllByAdmin(req, res) {
+    try {      
+      const movies = await getAllMoviesByAdmin();
       res.json(movies);
     } catch (error) {
       console.error("Error fetching movies:", error.message);
