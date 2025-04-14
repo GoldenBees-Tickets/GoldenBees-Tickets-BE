@@ -137,10 +137,25 @@ const updateUser = async ({ id, ...data }) => {
   }
 };
 
+const getStarUser = async (id) => {
+  try {
+    const user = await User.findOne({
+      attributes: ["id", "star"],
+      where: { id },
+    });
+    
+    return user;
+  } catch (error) {
+    console.error("Error fetching User", error);
+    throw new Error("Error", error.message);
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUser,
   updateUser,
   createAdminBranch,
-  getAllAdminBranches
+  getAllAdminBranches,
+  getStarUser
 };

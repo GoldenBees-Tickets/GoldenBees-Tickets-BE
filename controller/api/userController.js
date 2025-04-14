@@ -5,6 +5,7 @@ const {
   updateUser,
   createAdminBranch,
   getAllAdminBranches,
+  getStarUser,
 } = require("../../service/userService");
 const { uploadToCloudinary } = require("../../utils/cloudinary");
 const { resErrors, resData } = require("../common/common");
@@ -103,6 +104,17 @@ class ApiUserController {
       }
 
       const data = await updateUser({ id, userData });
+      res.json(data);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+
+  static async getStarUserController (req, res) {
+    try {
+      const { id } = req.params;
+      const data = await getStarUser(id);
       res.json(data);
     } catch (error) {
       console.error("Error creating user:", error);
