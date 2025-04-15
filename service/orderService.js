@@ -284,7 +284,9 @@ const payWithMoMo = async (data) => {
     };
   } catch (error) {
     console.error("Lỗi khi tạo thanh toán MOMO:", error);
-    await transaction.rollback();
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
     return {
       success: false,
       error: "Có lỗi xảy ra khi xử lý thanh toán",
