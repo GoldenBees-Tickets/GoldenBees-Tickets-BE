@@ -426,6 +426,26 @@ const handleApiError = (res, error, message) => {
   });
 };
 
+// Hàm trích xuất danh sách thể loại phim từ movieData
+const extractGenres = (movieData) => {
+  // Sử dụng Set để lưu trữ thể loại phim không trùng lặp
+  const genreSet = new Set();
+  
+  // Lặp qua từng bộ phim để lấy thể loại
+  movieData.forEach(movie => {
+    if (movie.genres && movie.genres.length > 0) {
+      movie.genres.forEach(genre => {
+        if (genre.name) {
+          genreSet.add(genre.name);
+        }
+      });
+    }
+  });
+  
+  // Chuyển Set thành mảng và sắp xếp theo alphabet
+  return Array.from(genreSet).sort();
+};
+
 // Xây dựng prompt thông minh với ngữ cảnh
 const buildPrompt = async (
   currentMessage,
@@ -463,6 +483,12 @@ Thành phố: ${cinema.city}
     `;
     })
     .join("\n");
+
+  // Trích xuất danh sách thể loại phim
+  const genresList = extractGenres(movieData);
+  const genresInfo = genresList.length > 0 
+    ? `DANH SÁCH THỂ LOẠI PHIM HIỆN CÓ:\n${genresList.map(genre => `- ${genre}`).join('\n')}\n\n` 
+    : "";
 
   // Tạo thông tin giá vé
   const ticketPriceInfo = await createTicketPriceInfo(movieData);
@@ -609,7 +635,7 @@ QUY TRÌNH ĐẶT VÉ TRỰC TIẾP:
 
   return `${conversationContext}Bạn là Minh, trợ lý AI của trang web đặt vé xem phim B Cinemas. 
 
-THÔNG TIN PHIM ĐANG CHIẾU:
+${genresInfo}THÔNG TIN PHIM ĐANG CHIẾU:
 ${movieInfo}
 
 THÔNG TIN RẠP CHIẾU PHIM:

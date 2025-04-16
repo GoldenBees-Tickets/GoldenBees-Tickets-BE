@@ -31,4 +31,18 @@ router.get('/verify-payment', vnpayTestController.verifyPayment);
  */
 router.get('/ipn', vnpayTestController.processIpn);
 
+/**
+ * @route   GET /v1/api/test-vnpay/callback
+ * @desc    Xử lý callback từ VNPay và redirect người dùng
+ * @access  Public
+ */
+router.get('/callback', vnpayTestController.handleCallback);
+
+/**
+ * @route   GET /v1/api/test-vnpay/payment-status/:orderId
+ * @desc    Kiểm tra trạng thái thanh toán
+ * @access  Public
+ */
+router.get('/payment-status/:orderId', vnpayTestController.checkPaymentStatus);
+
 module.exports = router; 

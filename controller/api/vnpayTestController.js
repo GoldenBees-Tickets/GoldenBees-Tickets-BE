@@ -10,15 +10,31 @@ const vnpayTestController = {
    * @param {Object} req Request
    * @param {Object} res Response
    */
-  createTestPayment: (req, res) => {
+  createTestPayment: async (req, res) => {
     try {
-      // Lấy dữ liệu từ request hoặc sử dụng giá trị mặc định
-      const orderId = `TEST${moment().format('YYYYMMDDHHmmss')}`;
-      const amount = req.body.amount || 10000; // Mặc định 10,000 VND
-      const orderInfo = req.body.orderInfo || `Thanh toan test don hang: ${orderId}`;
-      const orderType = req.body.orderType || 'billpayment';
-      const bankCode = req.body.bankCode || '';
-      const language = req.body.language || 'vn';
+      console.log("Nhận yêu cầu thanh toán VNPay:", req.body);
+      
+      // Lấy dữ liệu từ request
+      const { 
+        amount, 
+        orderInfo,
+        orderType = 'billpayment',
+        bankCode = '',
+        language = 'vn',
+        user_id,
+        showtime_id,
+        seat_ids,
+        combos = [],
+        promotion_id
+      } = req.body;
+      
+      // Kiểm tra các tham số bắt buộc
+      if (!amount || !user_id || !showtime_id || !seat_ids) {
+        return res.status(400).json({
+          success: false,
+          message: 'Thiếu thông tin thanh toán: cần có amount, user_id, showtime_id và seat_ids'
+        });
+      }
       
       // Lấy IP của client
       const ipAddr = req.headers['x-forwarded-for'] || 
@@ -26,39 +42,42 @@ const vnpayTestController = {
                     req.socket.remoteAddress ||
                     req.connection.socket.remoteAddress || '::1';
       
-      
-      // Tạo URL thanh toán
+      // Chuẩn bị dữ liệu thanh toán
       const paymentData = {
-        orderId,
-        amount,
-        orderInfo,
-        orderType,
+        user_id,
+        total: amount,
+        seat_ids,
+        showtime_id,
+        combos,
+        promotion_id,
+        orderInfo: orderInfo || 'Thanh toán vé xem phim',
         ipAddr,
         bankCode,
-        language
+        language,
+        orderType
       };
       
-      const result = vnpayService.createPaymentUrl(paymentData);
+      // Gọi service tạo URL thanh toán
+      const result = await vnpayService.createPaymentUrl(paymentData);
       
       if (result.success) {
-        // Lưu thông tin đơn hàng (giả lập)
-        
         return res.status(200).json({
           success: true,
-          orderId: orderId,
+          orderId: result.orderId,
+          vnpTxnRef: result.vnpTxnRef,
           paymentUrl: result.paymentUrl
         });
       } else {
         return res.status(400).json({
           success: false,
-          message: result.message || 'Could not create payment URL'
+          message: result.message || 'Không thể tạo URL thanh toán'
         });
       }
     } catch (error) {
-      console.error('[VNPay Test] Error creating test payment:', error);
+      console.error('[VNPay] Lỗi khi tạo thanh toán:', error);
       return res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Lỗi hệ thống'
       });
     }
   },
@@ -140,6 +159,116 @@ const vnpayTestController = {
     } catch (error) {
       console.error('[VNPay Test] Error processing IPN:', error);
       return res.status(500).json({ RspCode: '99', Message: 'Internal error' });
+    }
+  },
+  
+  /**
+   * Xử lý callback từ VNPay và cập nhật trạng thái đơn hàng
+   * @param {Object} req Request
+   * @param {Object} res Response 
+   */
+  handleCallback: async (req, res) => {
+    try {
+      const callbackData = req.query; // VNPay sử dụng query params thay vì body
+      
+      console.log('[VNPay CALLBACK] Received data:', JSON.stringify(callbackData, null, 2));
+      
+      // Kiểm tra dữ liệu callback cơ bản
+      if (!callbackData || !callbackData.vnp_ResponseCode) {
+        console.error('[VNPay CALLBACK] Dữ liệu callback không hợp lệ:', callbackData);
+        return res.status(400).json({
+          success: false,
+          message: 'Dữ liệu callback không hợp lệ'
+        });
+      }
+      
+      // Tìm đơn hàng dựa trên vnp_TxnRef
+      const vnp_TxnRef = callbackData.vnp_TxnRef;
+      console.log('[VNPay CALLBACK] Transaction Reference:', vnp_TxnRef);
+      
+      // Tìm thanh toán với vnp_TxnRef trong responseData
+      const Payment = require('../../models').Payment;
+      const payment = await Payment.findOne({
+        where: {
+          paymentType: 'VNPay'
+        },
+        order: [['createdAt', 'DESC']]
+      });
+      
+      let orderId;
+      if (payment) {
+        orderId = payment.orderId;
+        console.log('[VNPay CALLBACK] Found orderId from payment record:', orderId);
+        
+        // Cập nhật kết quả giao dịch vào payment record
+        await payment.update({
+          responseData: JSON.stringify({
+            ...JSON.parse(payment.responseData || '{}'),
+            callback: callbackData
+          })
+        });
+      } else {
+        console.error('[VNPay CALLBACK] Payment record not found for transaction reference:', vnp_TxnRef);
+      }
+      
+      // Gọi service để xử lý callback với orderId đã tìm được
+      if (orderId) {
+        callbackData.orderId = orderId; // Thêm orderId vào dữ liệu callback
+        const result = await vnpayService.handleVNPayCallback(callbackData);
+        // Đã xử lý xong callback, tiếp tục với redirect
+      } else {
+        console.error('[VNPay CALLBACK] Cannot determine orderId for transaction');
+      }
+      
+      // Kiểm tra mã phản hồi từ VNPay
+      const isSuccess = callbackData.vnp_ResponseCode === '00';
+      
+      // Thông báo kết quả
+      if (isSuccess) {
+        console.log(`[VNPay CALLBACK] Payment successful for order ${orderId}`);
+        // Redirect người dùng về trang thành công
+        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/payment-result?orderId=${orderId || 'unknown'}`);
+      } else {
+        console.log(`[VNPay CALLBACK] Payment failed for order ${orderId}: ${callbackData.vnp_ResponseCode}`);
+        // Redirect người dùng về trang thất bại
+        const message = encodeURIComponent('Thanh toán thất bại hoặc bị hủy');
+        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/payment-failed?orderId=${orderId || 'unknown'}&message=${message}`);
+      }
+    } catch (error) {
+      console.error('[VNPay CALLBACK] Error:', error);
+      // Redirect về trang lỗi
+      const message = encodeURIComponent('Có lỗi xảy ra khi xử lý thanh toán');
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/payment-error?message=${message}`);
+    }
+  },
+  
+  /**
+   * API endpoint để client kiểm tra kết quả thanh toán
+   * @param {Object} req Request
+   * @param {Object} res Response
+   */
+  checkPaymentStatus: async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      
+      if (!orderId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Thiếu thông tin đơn hàng'
+        });
+      }
+      
+      // Gọi service để kiểm tra trạng thái thanh toán từ orderService
+      const orderService = require('../../service/orderService');
+      const result = await orderService.checkPaymentStatus(orderId);
+      
+      return res.json(result);
+    } catch (error) {
+      console.error('[VNPay] Lỗi khi kiểm tra trạng thái thanh toán:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi khi kiểm tra trạng thái thanh toán'
+      });
     }
   }
 };
