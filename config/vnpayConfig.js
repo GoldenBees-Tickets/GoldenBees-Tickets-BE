@@ -15,8 +15,8 @@ module.exports = {
   vnp_Api: "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction",
   
   // URL trả về sau khi thanh toán
-  vnp_ReturnUrl: "http://localhost:5173/vnpay-result",
+  vnp_ReturnUrl: "http://localhost:3000/v1/api/test-vnpay/callback",
   
   // URL nhận thông báo IPN từ VNPay
-  vnp_IpnUrl: "http://localhost:3000/v1/api/payment/vnpay/ipn"
+  vnp_IpnUrl: "http://localhost:3000/v1/api/test-vnpay/ipn"
 }; 

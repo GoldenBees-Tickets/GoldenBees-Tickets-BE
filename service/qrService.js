@@ -261,20 +261,47 @@ const sendQRCodeEmail = async ({
 };
 
 // Tạo và lưu mã QR cho vé
-const generateQRCode = async ({
-  movieName,
-  showtime,
-  seatDatas,
-  orderId,
-  total,
-  user_id,
-  email,
-}) => {
+const generateQRCode = async (data) => {
   try {
+    console.log("Received data for QR generation:", JSON.stringify(data, null, 2));
+    
+    // Trích xuất dữ liệu
+    const {
+      movieName,
+      showtime,
+      seatDatas,
+      orderId,
+      total,
+      user_id,
+      email
+    } = data;
+    
     if (!orderId) {
       throw new Error("Thiếu orderId, không thể tạo mã QR.");
     }
-
+    
+    // Chuẩn bị dữ liệu ghế
+    let formattedSeatDatas = seatDatas;
+    
+    // Kiểm tra và chuyển đổi dữ liệu ghế từ Sequelize model nếu cần
+    if (seatDatas && Array.isArray(seatDatas)) {
+      formattedSeatDatas = seatDatas.map(seat => {
+        // Nếu là Sequelize model (có dataValues)
+        if (seat && seat.dataValues) {
+          return {
+            id: seat.dataValues.id,
+            seat_row: seat.dataValues.seat_row,
+            seat_number: seat.dataValues.seat_number,
+            price: seat.dataValues.price
+          };
+        }
+        // Nếu là object JavaScript thông thường
+        return seat;
+      });
+    }
+    
+    console.log("Formatted seat data:", JSON.stringify(formattedSeatDatas, null, 2));
+    
     // Tạo tên file duy nhất
     const fileName = `qr_${Date.now()}.png`;
     const filePath = path.join(__dirname, "../public/qr-codes", fileName);
@@ -297,30 +324,45 @@ const generateQRCode = async ({
     // Trả về URL của mã QR
     const qrUrl = `/qr-codes/${fileName}`;
     const qr_code = `/public${qrUrl}`;
-    await Order.update({ qr_code }, { where: { id: orderId } });
-
+    
+    // LƯU Ý: Không cập nhật qr_code vào bảng Order ở đây
+    // Thay vào đó sẽ trả về qrUrl và qr_code để service gọi hàm này tự cập nhật
+    
     // Nếu có email trong dữ liệu, gửi mã QR qua email
     let emailResult = null;
     if (email) {
-      emailResult = await sendQRCodeEmail({
-        movieName,
-        email,
-        qrUrl,
-        showtime,
-        seatDatas,
-        orderId,
-        total,
-      });
+      try {
+        emailResult = await sendQRCodeEmail({
+          movieName,
+          email,
+          qrUrl,
+          showtime,
+          seatDatas: formattedSeatDatas, // Sử dụng dữ liệu ghế đã định dạng
+          orderId,
+          total,
+        });
+      } catch (emailError) {
+        console.error("Lỗi khi gửi email:", emailError);
+        emailResult = {
+          success: false,
+          message: "Lỗi gửi email: " + emailError.message
+        };
+      }
     }
 
     return {
+      success: true,
+      message: 'QR code generated successfully',
       qrUrl,
-      orderId,
+      qr_code,
       emailResult,
     };
   } catch (error) {
     console.error("Lỗi khi tạo mã QR:", error);
-    throw error;
+    return {
+      success: false,
+      error: error.message || "Lỗi không xác định khi tạo mã QR"
+    };
   }
 };
 
