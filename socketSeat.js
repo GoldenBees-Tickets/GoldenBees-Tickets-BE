@@ -51,8 +51,6 @@ const startCleanupInterval = (io) => {
 
 const handleSeatSocket = (io, socket) => {
   const { userType, showtime_id, user_id } = socket.handshake.query;
-  console.log(`Client connected to booking: ${socket.id}, Type: ${userType}, Showtime: ${showtime_id}, User: ${user_id}`);
-
   if (showtime_id) {
     socket.join(`showtime_${showtime_id}`);
   }

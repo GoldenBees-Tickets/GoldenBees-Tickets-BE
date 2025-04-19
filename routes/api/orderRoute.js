@@ -4,6 +4,7 @@ const ApiOrderontroller = require("../../controller/api/orderController");
 const ApiOrderDataController = require("../../controller/api/orderDataController");
 
 const AuthorizationAdmin = require("../../middleware/authorizationAdmin");
+router.get("/getAllPagination", AuthorizationAdmin, ApiOrderDataController.getAllOrderPaginationController);
 
 router.post("/pay-with-momo", ApiOrderontroller.payWithMoMo);
 router.post("/callback", ApiOrderontroller.handleCallback);

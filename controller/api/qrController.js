@@ -62,7 +62,6 @@ const generateQR = async (req, res) => {
 const scanQR = async (req, res) => {
   try {
     const { order_id } = req.body;
-    console.log("order_id controller", order_id);
     if (!order_id) {
       return res.status(400).json({
         success: false,

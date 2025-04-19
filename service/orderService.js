@@ -141,10 +141,7 @@ const payWithMoMo = async (data) => {
       orderInfo = "Thanh toán vé xem phim",
     } = data;
     showtime_id = showtime_id;
-    console.log("---------------------------------");
-    
-    console.log("showtime_id", showtime_id);
-    
+        
     // Tạo thông tin đơn hàng
     const order = await Order.create({ user_id, total, showtime_id });
 
@@ -313,8 +310,6 @@ const handleCallback = async (callbackData) => {
       signature,
     } = callbackData;
 
-    console.log('Processing Momo callback for orderId:', orderId);
-
     // Tìm order dựa trên orderId
     const order = await Order.findOne({ where: { id: orderId } });
 
@@ -330,7 +325,6 @@ const handleCallback = async (callbackData) => {
 
     // Kiểm tra xem đơn hàng đã được xử lý chưa
     if (order.status === "paid") {
-      console.log(`Order ${orderId} has already been processed as PAID`);
       return {
         success: true,
         message: "Order already processed",
@@ -428,9 +422,7 @@ const handleCallback = async (callbackData) => {
         
         // Tạo string định dạng ngày giờ hợp lệ
         const formattedShowtime = startTime + ' ' + showDate;
-        
-        console.log('Sending showtime to QR generator:', formattedShowtime);
-        
+                
         const createQrCode = await generateQRCode({
           movieName: movieData.name,
           showtime: formattedShowtime,
@@ -441,12 +433,10 @@ const handleCallback = async (callbackData) => {
           email,
         });
 
-        console.log('Payment successful, QR code generated:', !!createQrCode);
         
         // Thêm log email
         if (createQrCode?.emailResult) {
           if (createQrCode.emailResult.success) {
-            console.log(`Email ticket đã được gửi thành công đến ${email} cho đơn hàng ${orderId}`);
           } else {
             console.error(`Không thể gửi email ticket đến ${email} cho đơn hàng ${orderId}:`, 
                           createQrCode.emailResult.message || 'Unknown error');
@@ -480,8 +470,6 @@ const handleCallback = async (callbackData) => {
 
       // Giải phóng ghế đã đặt
       await releaseBookedSeats(orderId, showtime_id);
-
-      console.log(`Payment failed for order ${orderId}, seats released`);
 
       return {
         success: true,
@@ -645,6 +633,94 @@ const checkPaymentStatus = async (orderId) => {
   }
 };
 
+const getOrdersPagination = async (options = {}) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search = '',
+      sort_order = 'desc',
+    } = options;
+
+    const offset = (page - 1) * limit;
+
+    // Điều kiện lọc
+    const whereClause = {};
+
+    // if (search) {
+    //   whereClause.name = {
+    //     [Op.like]: `%${search}%`,
+    //   };
+    // }
+
+     // Chuẩn hóa thứ tự sắp xếp
+     const sortOrder = ['asc', 'desc'].includes(sort_order.toLowerCase())
+     ? sort_order.toUpperCase()
+     : 'DESC';
+
+     // Tìm và đếm tổng số phim + lấy danh sách
+    const { count, rows: orders } = await Order.findAndCountAll({
+      where: whereClause,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [['order_date', sortOrder]],
+      attributes: ["id", "order_date", "qr_code", "refund_status", "status", "showtime_id", "total"],
+      include: [
+        {
+          model: Ticket,
+          attributes: ["id"], // bạn có thể lấy thêm thông tin nếu cần
+          required: false,
+          include: [
+            {
+              model: Seat,
+              attributes: ["seat_row", "seat_number"],
+              required: false,
+            },
+          ],
+        },
+        {
+          model: Showtime,
+          attributes: ["id", "start_time", "show_date"],
+          required: false,
+          include: [
+            {
+              model: Movie,
+              attributes: ["name", "poster", "age_rating"],
+              required: false,
+            },
+            {
+              model: Room,
+              attributes: ["name"],
+              required: false,
+              include: [
+                {
+                  model: Cinema,
+                  attributes: ["name"],
+                  required: false,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      distinct: true,
+    });
+
+    const totalPages = Math.ceil(count / limit);
+    
+    return {
+      orders,
+      pagination: {
+        total: count,
+        totalPages,
+        currentPage: parseInt(page),
+        limit: parseInt(limit),
+      },
+    };
+  } catch (error) {
+    throw error;
+  }
+}
 module.exports = {
   payWithMoMo,
   handleCallback,
@@ -653,4 +729,5 @@ module.exports = {
   releaseBookedSeats,
   getOrderByUserId,
   getAllOrders,
+  getOrdersPagination
 };

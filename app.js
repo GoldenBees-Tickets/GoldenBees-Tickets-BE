@@ -34,10 +34,8 @@ const io = new Server(server, {
 
 // Cấu hình cron chạy mỗi ngày lúc 1h sáng
 cron.schedule('0 1 * * *', async () => {
-  console.log('🕐 Đang cập nhật trạng thái phim...');
   try {
     await updateStatuses();
-    console.log('✅ Đã cập nhật xong!');
   } catch (err) {
     console.error('❌ Lỗi khi cập nhật status phim:', err);
   }
@@ -76,14 +74,12 @@ app.use('/api/voice-converter', voiceConverterRoutes);
 
 // Socket chính cho chat
 io.on('connection', (socket) => {
-  console.log('A user connected to chat');
   // ... code xử lý chat của bạn ...
 });
 
 // Socket riêng cho booking
 bookingIo.on('connection', (socket) => {
   handleSeatSocket(bookingIo, socket);
-  console.log('A user connected to booking');
 });
 
 // Khởi tạo cleanup interval khi server khởi động
@@ -91,7 +87,6 @@ const cleanupInterval = startCleanupInterval(bookingIo);
 
 // Cleanup khi server tắt
 process.on('SIGTERM', () => {
-  console.log('Server is shutting down...');
   clearInterval(cleanupInterval);
   io.close();
   bookingIo.close();
@@ -102,7 +97,6 @@ process.on('SIGTERM', () => {
 });
 
 process.on('SIGINT', () => {
-  console.log('Server is shutting down from SIGINT (Ctrl+C)...');
   clearInterval(cleanupInterval);
   io.close();
   bookingIo.close();

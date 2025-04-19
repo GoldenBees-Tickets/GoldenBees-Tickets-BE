@@ -27,7 +27,6 @@ const cleanupOldAudioFiles = async (directory, maxFilesToKeep = 2) => {
     
     // Nếu số lượng file audio ít hơn hoặc bằng số lượng cần giữ lại, không cần xóa
     if (audioFiles.length <= maxFilesToKeep) {
-      console.log(`No need to cleanup. Only have ${audioFiles.length} audio files.`);
       return;
     }
     
@@ -50,10 +49,8 @@ const cleanupOldAudioFiles = async (directory, maxFilesToKeep = 2) => {
     // Xóa từng file
     for (const file of filesToDelete) {
       fs.unlinkSync(file.path);
-      console.log(`Deleted old audio file: ${file.name}`);
     }
     
-    console.log(`Cleaned up ${filesToDelete.length} old audio files. Kept ${maxFilesToKeep} newest files.`);
   } catch (error) {
     console.error('Error cleaning up old audio files:', error);
   }
@@ -73,15 +70,11 @@ const textToSpeech = async (req, res) => {
       });
     }
 
-    console.log(`Converting text to speech`);
-    console.log(`Text length: ${text.length} characters`);
-
     // Sử dụng văn bản gốc, không xử lý thêm
     const processedText = text;
 
     const outputFile = `speech-${uuidv4()}.mp3`;
     const outputPath = path.join(outputDir, outputFile);
-    console.log('Saving file to:', outputPath);
 
     // Sử dụng Promise để xử lý callback
     await new Promise((resolve, reject) => {
@@ -90,7 +83,6 @@ const textToSpeech = async (req, res) => {
           console.error('Error saving audio file:', err);
           reject(err);
         } else {
-          console.log('File saved successfully at:', outputPath);
           resolve();
         }
       });
@@ -102,7 +94,6 @@ const textToSpeech = async (req, res) => {
     // Đường dẫn phải bắt đầu với /public để phù hợp với cấu hình static folder
     const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
     const audioUrl = `${serverUrl}/public/output/${outputFile}`;
-    console.log('Audio URL:', audioUrl);
     
     // Trả về đường dẫn file tương đối với thư mục public
     res.json({ 

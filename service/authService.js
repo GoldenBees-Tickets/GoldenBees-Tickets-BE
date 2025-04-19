@@ -124,6 +124,9 @@ const checkEmail = async ({ email, image }) => {
       if (check.dataValues.image == null) {
         await User.update({ image }, { where: { id: check.id } });
       }
+      if(check.dataValues.is_active === false) {
+        await User.update({ is_active: true }, { where: { id: check.id } });
+        }
       const accessToken = jwt.sign(
         {
           id: check.dataValues.id,
