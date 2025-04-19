@@ -11,9 +11,7 @@ const vnpayTestController = {
    * @param {Object} res Response
    */
   createTestPayment: async (req, res) => {
-    try {
-      console.log("Nhận yêu cầu thanh toán VNPay:", req.body);
-      
+    try {      
       // Lấy dữ liệu từ request
       const { 
         amount, 
@@ -170,9 +168,7 @@ const vnpayTestController = {
   handleCallback: async (req, res) => {
     try {
       const callbackData = req.query; // VNPay sử dụng query params thay vì body
-      
-      console.log('[VNPay CALLBACK] Received data:', JSON.stringify(callbackData, null, 2));
-      
+            
       // Kiểm tra dữ liệu callback cơ bản
       if (!callbackData || !callbackData.vnp_ResponseCode) {
         console.error('[VNPay CALLBACK] Dữ liệu callback không hợp lệ:', callbackData);
@@ -184,7 +180,6 @@ const vnpayTestController = {
       
       // Tìm đơn hàng dựa trên vnp_TxnRef
       const vnp_TxnRef = callbackData.vnp_TxnRef;
-      console.log('[VNPay CALLBACK] Transaction Reference:', vnp_TxnRef);
       
       // Tìm thanh toán với vnp_TxnRef trong responseData
       const Payment = require('../../models').Payment;
@@ -198,7 +193,6 @@ const vnpayTestController = {
       let orderId;
       if (payment) {
         orderId = payment.orderId;
-        console.log('[VNPay CALLBACK] Found orderId from payment record:', orderId);
         
         // Cập nhật kết quả giao dịch vào payment record
         await payment.update({
@@ -225,14 +219,12 @@ const vnpayTestController = {
       
       // Thông báo kết quả
       if (isSuccess) {
-        console.log(`[VNPay CALLBACK] Payment successful for order ${orderId}`);
         // Redirect người dùng về trang thành công
-        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/payment-result?orderId=${orderId || 'unknown'}`);
+        return res.redirect(`${process.env.CLIENT_URL}?orderId=${orderId || 'unknown'}`);
       } else {
-        console.log(`[VNPay CALLBACK] Payment failed for order ${orderId}: ${callbackData.vnp_ResponseCode}`);
         // Redirect người dùng về trang thất bại
         const message = encodeURIComponent('Thanh toán thất bại hoặc bị hủy');
-        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/payment-failed?orderId=${orderId || 'unknown'}&message=${message}`);
+        return res.redirect(`${process.env.CLIENT_URL_FAILED}/payment-failed?orderId=${orderId || 'unknown'}&message=${message}`);
       }
     } catch (error) {
       console.error('[VNPay CALLBACK] Error:', error);

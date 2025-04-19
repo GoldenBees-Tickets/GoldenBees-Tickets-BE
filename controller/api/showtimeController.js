@@ -76,7 +76,6 @@ class ApiShowtimeController {
     static async checkShowtime(req, res) {
         try {
             const { room_id, show_date, start_time, end_time } = req.body;
-            console.log("checkShowtime", room_id, show_date, start_time, end_time);
             
             
             if (!room_id || !show_date || !start_time || !end_time) {

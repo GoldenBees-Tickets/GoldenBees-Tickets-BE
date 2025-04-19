@@ -59,9 +59,7 @@ const sendMoMoRequest = (requestBody) => {
 // Controller thanh toán với MOMO
 exports.payWithMoMo = async (req, res) => {
     try {
-        const data = req.body;
-        console.log('Received payment request data:', JSON.stringify(data, null, 2));
-        
+        const data = req.body;        
         // Kiểm tra dữ liệu đầu vào chi tiết
         if (!data.user_id) {
             console.error('Missing user_id in payment request');
@@ -103,12 +101,8 @@ exports.payWithMoMo = async (req, res) => {
             orderInfo: data.orderInfo || `Thanh toán vé xem phim`
         };
         
-        console.log('Prepared data for payment service:', JSON.stringify(preparedData, null, 2));
-
         // Gọi service để xử lý thanh toán
-        const result = await orderService.payWithMoMo(preparedData);
-        console.log('Payment service result:', JSON.stringify(result, null, 2));
-        
+        const result = await orderService.payWithMoMo(preparedData);        
         if (result.success) {
             res.json(result.data);
         } else {
@@ -143,28 +137,17 @@ exports.handleCallback = async (req, res) => {
             extraData,
             signature
         } = req.body;
-
-        console.log('MOMO IPN Callback received:', req.body);
-        
-        // Thêm debug log cho việc gọi service handleCallback
-        console.log('Calling orderService.handleCallback with orderId:', orderId);
         
         // Chuyển dữ liệu callback từ MoMo đến service
         const result = await orderService.handleCallback(req.body);
         
-        // Log kết quả xử lý từ service
-        console.log('orderService.handleCallback result:', JSON.stringify(result, null, 2));
-        
         // Nếu thanh toán thành công, tạo mã QR
-        if (resultCode === '0' || resultCode === 0) {
-            console.log('Payment successful, creating QR code');
-            
+        if (resultCode === '0' || resultCode === 0) {            
             // Order đã được cập nhật trong orderService.handleCallback
             
             // Kiểm tra kết quả gửi email
             if (result.sendEmail) {
                 if (result.sendEmail.emailResult && result.sendEmail.emailResult.success) {
-                    console.log('Email with QR code sent successfully');
                 } else {
                     console.error('Failed to send email with QR code:', 
                         result.sendEmail.emailResult ? result.sendEmail.emailResult.message : 'Unknown error');
@@ -176,8 +159,6 @@ exports.handleCallback = async (req, res) => {
             // Có thể thêm webhook để thông báo cho client biết về thanh toán thành công
             // Ví dụ: gửi socket hoặc thông báo push
         } else {
-            console.log('Payment failed:', message);
-            // Đơn hàng đã được cập nhật trạng thái failed trong orderService.handleCallback
         }
         
         // Luôn trả về 200 cho MoMo để nó không gửi lại request
@@ -218,9 +199,7 @@ const generateTickets = async (booking_id) => {
                 status: 'ACTIVE',
                 created_at: new Date()
             });
-            
-            console.log(`Đã tạo vé với mã ${ticketCode} cho ghế ${bookingSeat.Seat.name}`);
-        }
+                    }
     } catch (error) {
         console.error('Lỗi khi tạo vé:', error);
     }
@@ -235,7 +214,6 @@ const releaseBookedSeats = async (booking_id, showtime_id) => {
         });
         
         if (bookingSeats.length === 0) {
-            console.log('Không tìm thấy ghế nào để giải phóng cho booking:', booking_id);
             return;
         }
         
@@ -252,8 +230,6 @@ const releaseBookedSeats = async (booking_id, showtime_id) => {
                 } 
             }
         );
-        
-        console.log(`Đã giải phóng ${seatIds.length} ghế cho booking ${booking_id}`);
     } catch (error) {
         console.error('Lỗi khi giải phóng ghế:', error);
     }
@@ -267,10 +243,7 @@ const generateTicketCode = () => {
 // Thêm API check payment status
 exports.checkPaymentStatus = async (req, res) => {
     try {
-        const { orderId } = req.params;
-        
-        console.log('Client checking payment status for orderId:', orderId);
-        
+        const { orderId } = req.params;        
         // Gọi service để kiểm tra trạng thái thanh toán
         const result = await orderService.checkPaymentStatus(orderId);
         
@@ -295,9 +268,6 @@ exports.handleClientCallback = async (req, res) => {
             message,
             extraData
         } = req.body;
-
-        console.log('Client callback received for order:', orderId);
-        console.log('Payment result code:', resultCode);
         
         if (!orderId) {
             return res.status(400).json({
@@ -317,9 +287,7 @@ exports.handleClientCallback = async (req, res) => {
         };
         
         const result = await orderService.handleCallback(callbackData);
-        
-        console.log('Client callback processing result:', JSON.stringify(result, null, 2));
-        
+                
         res.status(200).json({
             success: result.success,
             message: result.message || 'Đã xử lý',

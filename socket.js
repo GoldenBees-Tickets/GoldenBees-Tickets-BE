@@ -11,18 +11,10 @@ module.exports = function (server) {
     transports: ['websocket'] // Ensure WebSocket transport is used
   });
 
-  io.on('connection', (socket) => {
-    console.log('A user connected');
-    
-    const userType = socket.handshake.query.userType;
-    console.log(`Connected as ${userType}`);
-    
-
-    // Add logging to check the handshake query
-    console.log('Handshake query:', socket.handshake.query);
+  io.on('connection', (socket) => {    
+    const userType = socket.handshake.query.userType;    
 
     socket.on('send_message', (message) => {
-      console.log(`Received message from ${userType}: `, message);
 
       if (userType === 'user') {
         // Send to admin

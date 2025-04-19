@@ -212,9 +212,7 @@ const getShowtimesByMovieId = async (movie_id, options) => {
         const now = moment().tz('Asia/Ho_Chi_Minh'); // Sử dụng múi giờ Việt Nam
         const todayStr = now.format("YYYY-MM-DD");
         const currentTime = now.format("HH:mm:ss");
-        
-        console.log(`Lọc suất chiếu: Ngày hiện tại ${todayStr}, Giờ hiện tại ${currentTime}`);
-        
+                
         // Thêm điều kiện lọc theo thời gian hiện tại nếu được yêu cầu
         if (current_time) {
             // Nếu là ngày hiện tại, chỉ lấy các xuất chiếu có thời gian sau giờ hiện tại
@@ -276,9 +274,7 @@ const getShowtimesByMovieId = async (movie_id, options) => {
         const validShowtimes = showtimes.filter(showtime => 
             showtime.Movie && showtime.Room && showtime.Room.Cinema
         );
-        
-        console.log(`Tìm thấy ${validShowtimes.length}/${showtimes.length} suất chiếu hợp lệ cho phim ID ${movie_id}`);
-        
+                
         return validShowtimes;
     } catch (error) {
         console.error("Error in getShowtimesByMovieId service:", error);
@@ -287,9 +283,7 @@ const getShowtimesByMovieId = async (movie_id, options) => {
 };
 
 const getShowtimesForUserByMovieId = async (data) => {
-    try {     
-        console.log("movie_id check", data.movie_id);
-           
+    try {                
         let whereCondition = {
             movie_id: data.movie_id
         };
@@ -298,9 +292,7 @@ const getShowtimesForUserByMovieId = async (data) => {
         const now = moment().tz('Asia/Ho_Chi_Minh'); // Sử dụng múi giờ Việt Nam
         const todayStr = now.format("YYYY-MM-DD");
         const currentTime = now.format("HH:mm:ss");
-        
-        console.log(`Lọc suất chiếu: Ngày hiện tại ${todayStr}, Giờ hiện tại ${currentTime}`);
-        
+                
         // Thêm điều kiện lọc theo thời gian hiện tại nếu được yêu cầu
         if (now) {
             // Nếu là ngày hiện tại, chỉ lấy các xuất chiếu có thời gian sau giờ hiện tại
@@ -352,9 +344,7 @@ const getShowtimesForUserByMovieId = async (data) => {
         const validShowtimes = showtimes.filter(showtime => 
             showtime.Movie && showtime.Room && showtime.Room.Cinema
         );
-        
-        // console.log(`Tìm thấy ${validShowtimes.length}/${showtimes.length} suất chiếu hợp lệ cho phim ID ${data.movie_id}`);
-        
+                
         // return validShowtimes;
         return {
             status: 200,
@@ -373,17 +363,13 @@ const getShowtimesByMovieIdForChat = async (movie_id) => {
         const now = moment().tz("Asia/Ho_Chi_Minh");
         const todayStr = now.format("YYYY-MM-DD");
         const currentTime = now.format("HH:mm:ss");
-        
-        console.log(`DEBUG: movie_id=${movie_id}, todayStr=${todayStr}, currentTime=${currentTime}`);
-        
+                
         // Trước tiên, kiểm tra xem có suất chiếu nào cho phim này không
         const allShowtimes = await Showtime.findAll({
             where: { movie_id },
             order: [["show_date", "ASC"], ["start_time", "ASC"]],
         });
-        
-        console.log(`DEBUG: Tổng số suất chiếu cho phim: ${allShowtimes.length}`);
-        
+                
         // Sau đó mới áp dụng bộ lọc thời gian
         const showtimes = await Showtime.findAll({
             where: {
@@ -430,9 +416,7 @@ const getShowtimesByMovieIdForChat = async (movie_id) => {
             ],
             order: [["show_date", "ASC"], ["start_time", "ASC"]],
         });
-        
-        console.log(`DEBUG: Số suất chiếu hợp lệ (chưa diễn ra): ${showtimes.length}`);
-        
+                
         return showtimes;
     } catch (error) {
         console.error("Error in getShowtimesByMovieIdForChat service:", error);
@@ -557,9 +541,7 @@ const updateShowtime = async (id, updateData) => {
 };
 
 
-const getShowtimeByBranchIdForBoxchat = async (branch_id) => {
-    console.log("branch_id:", branch_id);
-  
+const getShowtimeByBranchIdForBoxchat = async (branch_id) => {  
     try {
       const showtimes = await Showtime.findAll({
         include: [

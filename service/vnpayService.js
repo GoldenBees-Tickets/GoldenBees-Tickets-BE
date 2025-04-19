@@ -215,7 +215,6 @@ const vnpayService = {
       // CẢNH BÁO: Trong môi trường production, điều này không nên được thực hiện
       const isTestEnvironment = process.env.NODE_ENV !== 'production';
       if (isTestEnvironment) {
-        console.log('[VNPay] Test environment detected - skipping signature verification');
         return {
           isValid: true,
           isSuccessful: vnpParams.vnp_ResponseCode === '00',
@@ -253,12 +252,6 @@ const vnpayService = {
       
       // So sánh chữ ký
       const isValid = secureHash === calculatedHash;
-      
-      if (!isValid) {
-        console.log('[VNPay] Signature mismatch:');
-        console.log('Expected:', calculatedHash);
-        console.log('Received:', secureHash);
-      }
       
       // Tạo kết quả
       const result = {
@@ -376,9 +369,7 @@ const vnpayService = {
         vnp_SecureHash,
         orderId // orderId đã được tìm từ payment record
       } = callbackData;
-      
-      console.log('[VNPay] Processing callback for transaction:', vnp_TxnRef);
-      
+            
       // Xác thực chữ ký
       const verifyResult = vnpayService.verifyReturnUrl(callbackData);
       
@@ -401,7 +392,6 @@ const vnpayService = {
         const orderIdMatch = vnp_TxnRef.match(/VNP(\d+)/);
         if (orderIdMatch && orderIdMatch[1]) {
           order_id = orderIdMatch[1];
-          console.log('[VNPay] Extracted orderId from VNPay TxnRef:', order_id);
         } else {
           console.error('[VNPay] Cannot extract orderId from vnp_TxnRef:', vnp_TxnRef);
           return {
@@ -412,7 +402,6 @@ const vnpayService = {
           };
         }
       } else {
-        console.log('[VNPay] Using provided orderId:', order_id);
       }
       
       // Tìm order dựa trên orderId
@@ -431,7 +420,6 @@ const vnpayService = {
       
       // Kiểm tra xem đơn hàng đã được xử lý chưa
       if (order.status === "paid") {
-        console.log(`[VNPay] Order ${order_id} has already been processed as PAID`);
         return {
           success: true,
           message: "Order already processed",
@@ -569,17 +557,6 @@ const vnpayService = {
           // Tạo string định dạng ngày giờ hợp lệ
           const formattedShowtime = startTime + ' ' + showDate;
           
-          console.log('[VNPay] Sending showtime to QR generator:', formattedShowtime);
-          console.log("data tạo qr", {
-            movieName: movieData.name,
-            showtime: formattedShowtime,
-            seatDatas: formattedSeatDatas,
-            orderId,
-            total: order.total,
-            user_id,
-            email,
-          });
-          
           try {
             const createQrCode = await generateQRCode({
               movieName: movieData.name,
@@ -598,13 +575,11 @@ const vnpayService = {
               }, { transaction });
             }
             
-            console.log('[VNPay] Payment successful, QR code generated:', !!createQrCode);
             await transaction.commit();
             
             // Thêm log email
             if (createQrCode?.emailResult) {
               if (createQrCode.emailResult.success) {
-                console.log(`[VNPay] Email ticket đã được gửi thành công đến ${email} cho đơn hàng ${order_id}`);
               } else {
                 console.error(`[VNPay] Không thể gửi email ticket đến ${email} cho đơn hàng ${order_id}:`, 
                   createQrCode.emailResult.message || 'Unknown error');
@@ -666,9 +641,7 @@ const vnpayService = {
         // Giải phóng ghế đã đặt - Import từ orderService
         const orderService = require('./orderService');
         await orderService.releaseBookedSeats(order_id, showtime_id);
-        
-        console.log(`[VNPay] Payment failed for order ${order_id}, seats released`);
-        
+                
         return {
           success: false,
           message: "Payment failure processed",

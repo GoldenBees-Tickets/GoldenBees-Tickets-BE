@@ -28,9 +28,6 @@ const sendQRCodeEmail = async ({
   seatDatas,
   total,
 }) => {
-
-  console.log("-------------------------------------------------");
-  console.log("sendQRCodeEmail", qrUrl);
   
   try {
     // Format lại showtime để hiển thị đúng
@@ -59,9 +56,7 @@ const sendQRCodeEmail = async ({
               minute: '2-digit',
               hour12: false
             });
-            console.log('Formatted showtime:', formattedShowtime);
           } else {
-            console.warn('Không thể chuyển đổi showtime thành Date:', showtime);
             // Fallback: Hiển thị dưới dạng text đẹp hơn
             formattedShowtime = `${timePart.substring(0, 5)} ngày ${datePart.split('-').reverse().join('/')}`;
           }
@@ -88,8 +83,6 @@ const sendQRCodeEmail = async ({
         ? seatDatas.map((item) => item.seat_row + item.seat_number).join(", ")
         : "Chưa có ghế";
 
-    // Kiểm tra thông tin email trước khi cấu hình
-    console.log(`SMTP Configuration - EMAIL_ADMIN: ${EMAIL_ADMIN ? 'configured' : 'missing'}, PASS_ADMIN: ${PASS_ADMIN ? 'configured' : 'missing'}`);
 
     const transportConfig = {
       service: "Gmail",
@@ -205,9 +198,6 @@ const sendQRCodeEmail = async ({
     };
 
     const info = await transporter.sendMail(mailOptions);
-
-    // Thêm log để debug
-    console.log("Email đã được gửi thành công:", info.messageId);
     
     // Ghi log vào file
     const logMessage = `${new Date().toISOString()} - Email sent successfully to ${email} for order ${orderId} - MessageID: ${info.messageId}\n`;
@@ -262,9 +252,7 @@ const sendQRCodeEmail = async ({
 
 // Tạo và lưu mã QR cho vé
 const generateQRCode = async (data) => {
-  try {
-    console.log("Received data for QR generation:", JSON.stringify(data, null, 2));
-    
+  try {    
     // Trích xuất dữ liệu
     const {
       movieName,
@@ -299,9 +287,7 @@ const generateQRCode = async (data) => {
         return seat;
       });
     }
-    
-    console.log("Formatted seat data:", JSON.stringify(formattedSeatDatas, null, 2));
-    
+        
     // Tạo tên file duy nhất
     const fileName = `qr_${Date.now()}.png`;
     const filePath = path.join(__dirname, "../public/qr-codes", fileName);
@@ -369,7 +355,6 @@ const generateQRCode = async (data) => {
 // Quét và xử lý mã QR
 const scanQRCode = async (order_id) => {
   try {
-    console.log("Quét mã QR cho order_id:", order_id);
     
     if (!order_id) {
       throw new Error("Mã đơn hàng là bắt buộc");
@@ -425,7 +410,6 @@ const scanQRCode = async (order_id) => {
 
     // Kiểm tra trạng thái đơn hàng
     if (order.status === "paid") {
-      console.log("Cập nhật trạng thái đơn hàng từ 'paid' thành 'completed'");
       
       // Cập nhật trạng thái đơn hàng
       order.status = "completed";

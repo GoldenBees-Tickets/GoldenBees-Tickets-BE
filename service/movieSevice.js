@@ -436,9 +436,7 @@ const getAllMoviesWithValidShowtimes = async () => {
     const now = moment().tz('Asia/Ho_Chi_Minh');
     const todayStr = now.format("YYYY-MM-DD");
     const currentTime = now.format("HH:mm:ss");
-    
-    console.log(`Lọc phim có xuất chiếu hợp lệ - Ngày hiện tại: ${todayStr}, Giờ hiện tại: ${currentTime}`);
-    
+        
     // Lấy tất cả phim cùng với các xuất chiếu hợp lệ của chúng
     const movies = await Movie.findAll({
       include: [
@@ -497,9 +495,7 @@ const getAllMoviesWithValidShowtimes = async () => {
     const filteredMovies = movies.filter(movie => {
       return movie.Showtimes && movie.Showtimes.length > 0;
     });
-    
-    console.log(`Tìm thấy ${filteredMovies.length} phim có xuất chiếu hợp lệ từ tổng số ${movies.length} phim`);
-    
+        
     return filteredMovies;
   } catch (error) {
     console.error("Error fetching movies with valid showtimes:", error.message);
