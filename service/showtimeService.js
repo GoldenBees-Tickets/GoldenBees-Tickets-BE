@@ -27,19 +27,41 @@ const getShowtimeByBranchId = async (options) => {
         // Thêm điều kiện lọc theo trạng thái
         if (status && status !== "all") {
             const now = moment();
+            const currentDate = now.format("YYYY-MM-DD");
+            const currentTime = now.format("HH:mm:ss");
+            
             switch (status) {
                 case "upcoming":
-                    whereCondition.show_date = {
-                        [Op.gt]: now.format("YYYY-MM-DD")
-                    };
+                    // Sắp chiếu: ngày lớn hơn hoặc bằng hôm nay nhưng chưa tới giờ chiếu
+                    whereCondition[Op.or] = [
+                        { show_date: { [Op.gt]: currentDate } },
+                        {
+                            [Op.and]: [
+                                { show_date: currentDate },
+                                { start_time: { [Op.gt]: currentTime } }
+                            ]
+                        }
+                    ];
                     break;
                 case "showing":
-                    whereCondition.show_date = now.format("YYYY-MM-DD");
+                    // Đang chiếu: cùng ngày và thời gian hiện tại nằm trong khoảng start_time và end_time
+                    whereCondition[Op.and] = [
+                        { show_date: currentDate },
+                        { start_time: { [Op.lte]: currentTime } },
+                        { end_time: { [Op.gte]: currentTime } }
+                    ];
                     break;
                 case "past":
-                    whereCondition.show_date = {
-                        [Op.lt]: now.format("YYYY-MM-DD")
-                    };
+                    // Đã chiếu: ngày nhỏ hơn hôm nay hoặc ngày hôm nay nhưng đã qua giờ kết thúc
+                    whereCondition[Op.or] = [
+                        { show_date: { [Op.lt]: currentDate } },
+                        {
+                            [Op.and]: [
+                                { show_date: currentDate },
+                                { end_time: { [Op.lt]: currentTime } }
+                            ]
+                        }
+                    ];
                     break;
             }
         }
@@ -120,19 +142,41 @@ const getAllShowtimes = async (options) => {
         // Thêm điều kiện lọc theo trạng thái
         if (status && status !== "all") {
             const now = moment();
+            const currentDate = now.format("YYYY-MM-DD");
+            const currentTime = now.format("HH:mm:ss");
+            
             switch (status) {
                 case "upcoming":
-                    whereCondition.show_date = {
-                        [Op.gt]: now.format("YYYY-MM-DD")
-                    };
+                    // Sắp chiếu: ngày lớn hơn hoặc bằng hôm nay nhưng chưa tới giờ chiếu
+                    whereCondition[Op.or] = [
+                        { show_date: { [Op.gt]: currentDate } },
+                        {
+                            [Op.and]: [
+                                { show_date: currentDate },
+                                { start_time: { [Op.gt]: currentTime } }
+                            ]
+                        }
+                    ];
                     break;
                 case "showing":
-                    whereCondition.show_date = now.format("YYYY-MM-DD");
+                    // Đang chiếu: cùng ngày và thời gian hiện tại nằm trong khoảng start_time và end_time
+                    whereCondition[Op.and] = [
+                        { show_date: currentDate },
+                        { start_time: { [Op.lte]: currentTime } },
+                        { end_time: { [Op.gte]: currentTime } }
+                    ];
                     break;
                 case "past":
-                    whereCondition.show_date = {
-                        [Op.lt]: now.format("YYYY-MM-DD")
-                    };
+                    // Đã chiếu: ngày nhỏ hơn hôm nay hoặc ngày hôm nay nhưng đã qua giờ kết thúc
+                    whereCondition[Op.or] = [
+                        { show_date: { [Op.lt]: currentDate } },
+                        {
+                            [Op.and]: [
+                                { show_date: currentDate },
+                                { end_time: { [Op.lt]: currentTime } }
+                            ]
+                        }
+                    ];
                     break;
             }
         }

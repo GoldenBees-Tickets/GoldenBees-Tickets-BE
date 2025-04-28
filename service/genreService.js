@@ -9,7 +9,6 @@ const getAllGenres = async (page = 1, limit = 5, search = '') => {
         const whereClause = search ? {
             [Op.or]: [
                 { name: { [Op.like]: `%${search}%` } },
-                { description: { [Op.like]: `%${search}%` } }
             ]
         } : {};
 

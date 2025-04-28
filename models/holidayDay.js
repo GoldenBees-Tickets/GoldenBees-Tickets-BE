@@ -4,7 +4,7 @@ module.exports = (sequelize, DataTypes) => {
       {
         branch_id: {
           type: DataTypes.INTEGER,
-          allowNull: false,
+          allowNull: true,
         },
         holiday_date: {
           type: DataTypes.DATEONLY,
