@@ -31,7 +31,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         {
             timestamps: false,
-            tableName: 'block_seats', // Đảm bảo tên bảng khớp với MySQL
+            tableName: 'blockseats', // Đảm bảo tên bảng khớp với MySQL
             freezeTableName: true 
         }
     );

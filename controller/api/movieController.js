@@ -18,8 +18,17 @@ const uploadFolder = "movies";
 class ApiMovieController {
   static async index(req, res) {
     try {
-      // Sử dụng getAllMoviesWithValidShowtimes để chỉ lấy phim có xuất chiếu hợp lệ
-      const movies = await getAllMovies();
+      // Lấy các tham số phân trang từ query params
+      const { page, limit, search, sort_order, status } = req.query;
+      
+      // Truyền các tham số này vào hàm getAllMovies
+      const movies = await getAllMovies({ 
+        page, 
+        limit, 
+        search, 
+        sort_order,
+        status
+      });
             
       // Trả về dữ liệu phim đã lọc
       res.json(movies);

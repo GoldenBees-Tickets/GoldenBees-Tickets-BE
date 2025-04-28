@@ -104,9 +104,7 @@ function initializeSocket(server) {
     });
 
     // Xử lý ngắt kết nối
-    socket.on('disconnect', () => {
-      console.log(`Client disconnected: ${socket.id}`);
-      
+    socket.on('disconnect', () => {      
       // Tìm và hủy tất cả ghế của user này
       for (const [seatId, booking] of bookedSeats.entries()) {
         if (booking.socketId === socket.id) {

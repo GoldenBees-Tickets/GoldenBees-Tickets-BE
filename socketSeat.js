@@ -57,7 +57,6 @@ const handleSeatSocket = (io, socket) => {
 
   socket.on('bookSeat', async (data, callback) => {
     const { seat_id, showtime_id, user_id } = data;
-    console.log(`Attempting to book seat ${seat_id} for user ${user_id} in showtime ${showtime_id}`);
     
     try {
       // Khi chọn ghế ở giao diện chọn ghế, chỉ lưu client-side, không gửi lên server
@@ -79,7 +78,6 @@ const handleSeatSocket = (io, socket) => {
 
   socket.on('reserveSeats', async (data, callback) => {
     const { seat_ids, showtime_id, user_id } = data;
-    console.log(`Attempting to reserve seats ${seat_ids} for user ${user_id} in showtime ${showtime_id}`);
     
     try {
       // Kiểm tra tất cả ghế đã chọn có khả dụng không
@@ -96,7 +94,6 @@ const handleSeatSocket = (io, socket) => {
 
       if (existingBlocks.length > 0) {
         const blockedSeatIds = existingBlocks.map(b => b.seat_id);
-        console.log(`Some seats are already blocked by other users: ${blockedSeatIds}`);
         
         // Thông báo cho tất cả clients về ghế đã không khả dụng
         socket.emit('seatUnavailable', {
@@ -131,9 +128,6 @@ const handleSeatSocket = (io, socket) => {
           expires_at
         })
       ));
-
-      console.log(`Seats ${seat_ids} reserved successfully by user ${user_id}`);
-
       // Thông báo cho tất cả clients trong cùng showtime về ghế đã được đặt
       io.to(`showtime_${showtime_id}`).emit('seatBooked', {
         seat_ids,
@@ -163,15 +157,9 @@ const handleSeatSocket = (io, socket) => {
     }
   });
 
-  socket.on('unbookSeat', async (data) => {
-    // Unbooking ghế không cần xử lý server side, chỉ cần lưu ở client
-    console.log(`Client side unbooking for seat`);
-  });
-
   // Xử lý khi phiên đặt vé hết hạn
   socket.on('sessionExpired', async (data) => {
     const { user_id, showtime_id, seat_ids } = data;
-    console.log(`Session expired for user ${user_id} in showtime ${showtime_id}, seats: ${seat_ids}`);
 
     try {
       // Xóa tất cả ghế đã block của user này
@@ -197,7 +185,6 @@ const handleSeatSocket = (io, socket) => {
         seat_ids
       });
 
-      console.log(`Successfully unblocked seats for expired session - user ${user_id}, showtime ${showtime_id}`);
     } catch (error) {
       console.error('Error handling session expiration:', error);
     }
@@ -206,7 +193,6 @@ const handleSeatSocket = (io, socket) => {
   // Xử lý khi thanh toán thành công
   socket.on('paymentCompleted', async (data) => {
     const { user_id, showtime_id, seat_ids } = data;
-    console.log(`Payment completed for user ${user_id} in showtime ${showtime_id}, seats: ${seat_ids}`);
 
     try {
       // Tại đây bạn sẽ chuyển BlockSeat thành đơn hàng thực sự
@@ -229,24 +215,9 @@ const handleSeatSocket = (io, socket) => {
         user_id
       });
 
-      console.log(`Successfully processed payment for user ${user_id}, showtime ${showtime_id}`);
     } catch (error) {
       console.error('Error handling payment completion:', error);
     }
-  });
-
-  socket.on('disconnect', async () => {
-    console.log(`Client disconnected: ${socket.id}, User: ${user_id}`);
-    
-    // Khi disconnect ở trang đặt ghế, không xóa ghế đã chọn
-    // Khi disconnect ở trang thanh toán, ghế vẫn được giữ trong DB cho đến khi hết hạn
-  });
-
-  // Thêm xử lý window unload/close
-  socket.on('windowClose', async () => {
-    console.log(`Window closed for user: ${user_id}`);
-    // Khi đóng tab/window, cũng không xóa ghế
-    // Ghế sẽ được giữ cho đến khi hết thời gian timeout
   });
 };
 

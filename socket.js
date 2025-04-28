@@ -28,7 +28,6 @@ module.exports = function (server) {
     });
 
     socket.on('typing', (userType) => {
-      console.log(`${userType} is typing...`);
       socket.broadcast.emit('typing', { userType });
     });
 
