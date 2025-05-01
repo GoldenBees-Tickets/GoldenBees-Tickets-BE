@@ -76,7 +76,7 @@ class ApiMovieController {
 
   static async create(req, res) {
     try {
-      const { name, description, trailer, age_rating, duration, director_id, year, country, release_date, actor_id, genre_id, producer_id } = req.body;
+      const { name, description, trailer, age_rating, duration, director_id, year, country, release_date, end_date, actor_id, genre_id, producer_id } = req.body;
       
       if (!name || !duration || !director_id) {
         return resErrors(res, 400, "Name, duration, and director_id are required.");
@@ -97,6 +97,7 @@ class ApiMovieController {
         year,
         country,
         release_date,
+        end_date,
         actorIds: Array.isArray(actor_id) ? actor_id.map(Number) : [], // Chuyển đổi thành số
         genreIds: Array.isArray(genre_id) ? genre_id.map(Number) : [],
         producerIds: Array.isArray(producer_id) ? producer_id.map(Number) : [],
@@ -179,16 +180,6 @@ class ApiMovieController {
       res.json(result);
     } catch (error) {
       console.error("Error deleting movie:", error.message);
-      resErrors(res, 500, "Internal Server Error");
-    }
-  }
-
-  static async updateStatus(req, res) {
-    try {
-     const result = await updateStatuses();
-      res.json(result);
-    } catch (error) {
-      console.error("Error updating movie status:", error.message);
       resErrors(res, 500, "Internal Server Error");
     }
   }

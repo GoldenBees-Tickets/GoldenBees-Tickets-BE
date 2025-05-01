@@ -4,7 +4,8 @@ const {
     getDirector,
     createDirector,
     updateDirector,
-    deleteDirector
+    deleteDirector,
+    getDirectorsNotPage
 } = require("../../service/directorService");
 const { uploadToCloudinary } = require("../../utils/cloudinary");
 const uploadFolder = 'directors';
@@ -32,6 +33,16 @@ class ApiDirectorController {
             resErrors(res, 500, "Internal Server Error");
         }
     }
+
+    static async getAll(req, res) {
+        try {
+            const data = await getDirectorsNotPage();
+            res.json(data);
+        } catch (error) {
+            console.error("Error fetching all directors:", error.message);
+            resErrors(res, 500, "Internal Server Error");
+        }
+    }   
 
     static async show(req, res) {
         try {

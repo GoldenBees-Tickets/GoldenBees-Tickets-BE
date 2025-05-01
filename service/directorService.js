@@ -58,6 +58,16 @@ const getAllDirectors = async (options = {}) => {
     }
 };
 
+const getDirectorsNotPage = async () => {
+    try {
+        const data = await Director.findAll();
+        return { status: 200, message: "Get all directors successfully", data, success: true, error: false };
+    } catch (error) {
+        console.error("Error fetching director:", error.message);
+        throw error;
+    }
+}
+
 // Lấy đạo diễn theo ID
 const getDirector = async (id) => {
     try {
@@ -122,5 +132,6 @@ module.exports = {
     createDirector,
     updateDirector,
     deleteDirector,
-    getAllDirectorsForBoxchat
+    getAllDirectorsForBoxchat,
+    getDirectorsNotPage
 };

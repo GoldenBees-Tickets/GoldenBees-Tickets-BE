@@ -123,12 +123,23 @@ const getAllProducersForBoxchat = async () => {
   }
 };
 
+const getProducersNotPage = async () => {
+  try {
+    const data = await Producer.findAll();
+    return { status: 200, success: true, message: "Get all producers successfully", data, error: false };
+  } catch (error) {
+    console.error("Error fetching all producers:", error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   getAllProducers,
   getProducer,
   createProducer,
   updateProducer,
   deleteProducer,
-  getAllProducersForBoxchat
+  getAllProducersForBoxchat,
+  getProducersNotPage
 };
 

@@ -9,6 +9,7 @@ const AuthorizationAdmin = require("../../middleware/authorizationAdmin");
 const upload = require("../../utils/multer");
 
 router.get("/", ApiActorController.index);
+router.get("/getAll", ApiActorController.getAll);
 router.get("/:id", ApiActorController.show);
 
 // Ở đây chúng ta dùng field "profile_picture" - khớp với Controller

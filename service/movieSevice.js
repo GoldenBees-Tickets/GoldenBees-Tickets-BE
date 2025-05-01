@@ -1,4 +1,4 @@
-const { Op, where } = require("sequelize");
+const { Op } = require("sequelize");
 const {
   Movie,
   MovieGenre,
@@ -10,7 +10,8 @@ const {
   Producer,
   Showtime,
   Room,
-  Cinema
+  Cinema,
+  sequelize
 } = require("../models");
 const { createMovieActor, deleteMovieActor } = require("./movieActorService");
 const { createMovieGenre, deleteMovieGenre } = require("./movieGenreService");
@@ -49,7 +50,6 @@ const getAllMovies = async (options = {}) => {
       page = 1,
       limit = 20,
       search = '',
-      status = '',
       sort_order = 'desc',
     } = options;
 
@@ -67,10 +67,6 @@ const getAllMovies = async (options = {}) => {
       };
     }
 
-    // Thêm điều kiện lọc theo trạng thái
-    if (status && status !== 'all') {
-      whereClause.status = status;
-    }
 
     // Chuẩn hóa thứ tự sắp xếp
     const sortOrder = ['asc', 'desc'].includes(sort_order.toLowerCase())
@@ -83,6 +79,18 @@ const getAllMovies = async (options = {}) => {
       limit: limitNum,
       offset: offset,
       order: [['release_date', sortOrder]],
+      attributes: {
+        include: [
+          [
+            sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM Showtimes AS st
+              WHERE st.movie_id = Movie.id AND st.start_time > NOW()
+            )`),
+            'total_showtimes'
+          ]
+        ]
+      },
       include: [
         {
           model: MovieGenre,
@@ -106,6 +114,7 @@ const getAllMovies = async (options = {}) => {
       ],
       distinct: true,
     });
+    
 
     const totalPages = Math.ceil(count / limitNum);
 
@@ -127,11 +136,22 @@ const getAllMovies = async (options = {}) => {
 
 const getAllMoviesByUsers = async () => {
   try {
-    const data = await Movie.findAll({
-      where: {
-        status: {
-          [Op.ne]: 'ended'
-        }
+    const now = new Date();
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(now.getDate() + 7);
+
+    const movies = await Movie.findAll({
+      attributes: {
+        include: [
+          [
+            sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM Showtimes AS st
+              WHERE st.movie_id = Movie.id AND st.start_time > NOW()
+            )`),
+            'total_showtimes'
+          ]
+        ]
       },
       include: [
         {
@@ -150,12 +170,28 @@ const getAllMoviesByUsers = async () => {
       ],
     });
 
+    // Lọc phim theo điều kiện
+    const filteredMovies = movies.filter(movie => {
+      const releaseDate = new Date(movie.release_date);
+      const totalShowtimes = parseInt(movie.getDataValue('total_showtimes')) || 0;
+
+      if (releaseDate > sevenDaysFromNow) {
+        return true; // sắp chiếu
+      }
+
+      if (releaseDate <= sevenDaysFromNow && totalShowtimes > 0) {
+        return true; // đang chiếu còn suất
+      }
+
+      return false; // đã chiếu mà hết suất => không hiển thị
+    });
+
     return {
       status: 200,
       success: true,
       message: "Lấy danh sách phim thành công",
       error: false,
-      data
+      data: filteredMovies,
     };
   } catch (error) {
     console.error("Error fetching movies:", error.message);
@@ -207,6 +243,7 @@ const createMovieWithRelations = async ({
   year,
   country,
   release_date,
+  end_date,
   actorIds = [],
   genreIds = [],
   producerIds = [],
@@ -223,6 +260,7 @@ const createMovieWithRelations = async ({
       year,
       country,
       release_date,
+      end_date
     });
 
     const movie_id = Number(movie.id);
@@ -394,51 +432,6 @@ async function getMovieStatus(movie, showtimes) {
   return "coming_soon";
 }
 
-async function updateStatuses() {
-  try {
-    // Thay đổi cách query để đảm bảo showtime được lấy đúng
-    const movies = await Movie.findAll({
-      include: [
-        {
-        model: Showtime,
-        required: false, // Lấy cả phim không có showtime
-        },
-      ],
-    });
-  
-    for (const movie of movies) {            
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const releaseDate = new Date(movie.release_date);
-      releaseDate.setHours(0, 0, 0, 0);
-      
-      const showtimes = movie.Showtimes || [];
-      
-      // Gọi hàm getMovieStatus với các thông số đã chuẩn hóa
-      const status = await getMovieStatus(movie, showtimes);
-      
-      if (movie.status !== status) {
-        await movie.update({ status });
-      }
-    }
-    return {
-      status: 200,
-      message: "Đã cập nhật trạng thái phim!",
-      success: true,
-      error: null,
-    };
-  } catch (error) {
-    console.error("Error updating movie statuses:", error.message);
-    return {
-      status: 500,
-      message: "Lỗi khi cập nhật trạng thái phim!",
-      success: false,
-      error: error.message,
-    };
-  }
-}
-
 const getAllMoviesWithValidShowtimes = async () => {
   try {
     // Lấy thời gian hiện tại
@@ -543,7 +536,6 @@ module.exports = {
   createMovieWithRelations,
   updateMovieWithRelations,
   deleteMovieWithRelations,
-  updateStatuses,
   getAllMoviesWithValidShowtimes,
   getAllMoviesByUsers,
   getAllMoviesForBoxchat,
