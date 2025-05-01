@@ -11,10 +11,10 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
             },
             rating: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.FLOAT,
                 allowNull: false,
                 validate: {
-                    min: 1,  // Rating phải từ 1
+                    min: 0.5,  // Rating phải từ 1
                     max: 5,  // Rating phải không vượt quá 5
                 },
             },

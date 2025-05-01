@@ -13,6 +13,5 @@ router.get("/:id", ApiMovieController.show);
 router.post("/", AuthorizationAdmin, upload.single("poster"), ApiMovieController.create);
 router.put("/:id", AuthorizationAdmin, upload.single("poster"), ApiMovieController.update);
 router.delete("/:id", AuthorizationAdmin, ApiMovieController.delete);
-router.post("/update-status", AuthorizationBranchAdmin, ApiMovieController.updateStatus);
 
 module.exports = router;

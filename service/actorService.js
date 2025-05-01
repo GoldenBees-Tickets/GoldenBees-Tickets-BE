@@ -58,6 +58,16 @@ const getAllActors = async (options = {}) => {
     }
 };
 
+const getActorsNotPage = async () => {
+    try {
+        const data = await Actor.findAll();
+        return {status: 200, success: true, message: "Get all actors successfully", data, error: false};
+    } catch (error) {
+        console.error("Error fetching all actors:", error.message);
+        throw error;
+    }
+};
+
 // Lấy diễn viên theo ID
 const getActor = async (id) => {
     try {
@@ -123,5 +133,6 @@ module.exports = {
     createActor,
     updateActor,
     deleteActor,
-    getAllActorsForBoxchat
+    getAllActorsForBoxchat,
+    getActorsNotPage
 };

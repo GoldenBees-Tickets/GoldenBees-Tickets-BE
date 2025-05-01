@@ -44,15 +44,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         allowNull: false,
       },
-      status: {
-        type: DataTypes.ENUM(
-          "coming_soon",
-          "opening_soon",
-          "now_showing",
-          "ended"
-        ),
-        defaultValue: "coming_soon",
-      },
+      end_date: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },      
     },
     {
       timestamps: true,

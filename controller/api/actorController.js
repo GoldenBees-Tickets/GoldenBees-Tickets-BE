@@ -6,7 +6,8 @@ const {
     getActor,
     createActor,
     updateActor,
-    deleteActor
+    deleteActor,
+    getActorsNotPage,
 } = require("../../service/actorService");
 const { uploadToCloudinary } = require("../../utils/cloudinary");
 const uploadFolder="actors";
@@ -29,6 +30,16 @@ class ApiActorController {
                 actors: result.actors,
                 pagination: result.pagination
             });
+        } catch (error) {
+            console.error("Error fetching actors:", error.message);
+            resErrors(res, 500, "Internal Server Error");
+        }
+    }
+
+    static async getAll(req, res) {
+        try {           
+            const data = await getActorsNotPage();
+            res.json(data);
         } catch (error) {
             console.error("Error fetching actors:", error.message);
             resErrors(res, 500, "Internal Server Error");

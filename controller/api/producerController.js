@@ -5,11 +5,13 @@ const {
   createProducer,
   updateProducer,
   deleteProducer,
+  getProducersNotPage,
 } = require("../../service/producerService");
 const {
   uploadToCloudinary,
   deleteFromCloudinary,
 } = require("../../utils/cloudinary");
+const { get } = require("lodash");
 
 const uploadFolder = "producers";
 class ApiProducerController {
@@ -32,6 +34,15 @@ class ApiProducerController {
       });
     } catch (error) {
       console.error("Error fetching producers:", error.message);
+      resErrors(res, 500, "Internal Server Error");
+    }
+  }
+
+  static async getAll(req, res) {
+    try {
+      const data = await getProducersNotPage();
+      res.json(data);
+    } catch (error) {
       resErrors(res, 500, "Internal Server Error");
     }
   }
