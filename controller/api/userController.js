@@ -1,4 +1,3 @@
-const { error } = require("console");
 const {
   getAllUsers,
   getUser,
@@ -6,6 +5,8 @@ const {
   createAdminBranch,
   getAllAdminBranches,
   getStarUser,
+  updateStatusForAdmin,
+  updateDataAdmin,
 } = require("../../service/userService");
 const { uploadToCloudinary } = require("../../utils/cloudinary");
 const { resErrors, resData } = require("../common/common");
@@ -118,6 +119,30 @@ class ApiUserController {
       res.json(data);
     } catch (error) {
       console.error("Error creating user:", error);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+
+  static async updateStatusUser (req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const data = await updateStatusForAdmin({ id, status });
+      res.json(data);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+
+  static async updateAdminController (req, res) {
+    try {
+      const { id } = req.params;
+      const { ...otherData } = req.body;
+      const data = await updateDataAdmin({ id, userData: otherData });
+      res.json(data);
+    } catch (error) {
+      console.error("Error updating user:", error);
       resErrors(res, 500, error.message || "Internal Server Error");
     }
   }

@@ -53,7 +53,6 @@ const {
   ComboItem,
   FoodAndDrink,
   Order,
-  PaymentSetting,
   PriceSetting,
   Promotion,
   PromotionUsage,
@@ -90,9 +89,6 @@ User.belongsTo(Branch, { foreignKey: "branch_id" });
 
 Branch.hasMany(Cinema, { foreignKey: "branch_id" });
 Cinema.belongsTo(Branch, { foreignKey: "branch_id" });
-
-Branch.hasMany(PriceSetting, {foreignKey: "branch_id"});
-PriceSetting.belongsTo(Branch, {foreignKey: "branch_id"});
 
 Cinema.hasMany(Room, { foreignKey: "cinema_id" });
 Room.belongsTo(Cinema, { foreignKey: "cinema_id" });

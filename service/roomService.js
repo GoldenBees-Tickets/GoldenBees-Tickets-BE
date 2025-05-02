@@ -250,6 +250,22 @@ const getAllRoomForBoxchat = async () => {
   }
 };
 
+const getSeatByRoomIdService = async (room_id) => {
+  try {
+    const seats = await Seat.findAll({ where: { room_id } });
+    return {
+      status: 200,
+      data: seats,
+      success: true,
+      message: "Get seats successfully",
+      error: null,
+    };
+  } catch (error) {
+    console.error("Error fetching seats:", error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllRoom,
   getRoom,
@@ -257,5 +273,6 @@ module.exports = {
   updateRoom,
   deleteRoom,
   getRoomsByCinemaId,
-  getAllRoomForBoxchat
+  getAllRoomForBoxchat,
+  getSeatByRoomIdService
 };

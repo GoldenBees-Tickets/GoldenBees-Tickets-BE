@@ -6,6 +6,7 @@ const AuthorizationBranchAdmin = require("../../middleware/authorizationBranchAd
 
 router.get("/", ApiRoomController.index);
 router.get("/:id", ApiRoomController.show);
+router.get("/seats/:id", ApiRoomController.getSeatsByRoomId);
 router.get("/cinema/:id", ApiRoomController.showByCinemaId);
 router.post("/", AuthorizationBranchAdmin, ApiRoomController.create);
 router.put("/:id", AuthorizationBranchAdmin, ApiRoomController.update);
