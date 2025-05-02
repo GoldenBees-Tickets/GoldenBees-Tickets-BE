@@ -294,7 +294,8 @@ const updateMovieWithRelations = async ({
   director_id,
   year,
   country,
-
+  release_date,
+  end_date,
   actor_id = [],
   producer_id = [],
   genre_id = [],
@@ -312,6 +313,8 @@ const updateMovieWithRelations = async ({
         director_id,
         year,
         country,
+        release_date,
+        end_date,
       },
       { where: { id } }
     );

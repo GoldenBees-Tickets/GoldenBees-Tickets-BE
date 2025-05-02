@@ -5,6 +5,7 @@ const {
   createRoom,
   updateRoom,
   getRoomsByCinemaId,
+  getSeatByRoomIdService
 } = require("../../service/roomService");
 
 class ApiRoomController {
@@ -39,6 +40,16 @@ class ApiRoomController {
       resData(res, 200, "Get room successfully", room);
     } catch (error) {
       console.error("Error fetching room:", error.message);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+  static async getSeatsByRoomId(req, res) {
+    try {
+      const { id } = req.params;
+      const seats = await getSeatByRoomIdService(id);
+      res.json(seats)
+    } catch (error) {
+      console.error("Error fetching seats:", error.message);
       resErrors(res, 500, error.message || "Internal Server Error");
     }
   }

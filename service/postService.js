@@ -1,14 +1,49 @@
 const { Post } = require("../models");
 const { Op } = require("sequelize");
 
-const getAllPosts = async () => {
+const getAllPosts = async (options = {}) => {
   try {
-    const posts = await Post.findAll({
-      order: [["createdAt", "DESC"]],
+    const { page = 1, limit = 10, search = "", sort_order = "desc" } = options;
+
+    // Tính offset cho phân trang
+    const offset = (page - 1) * limit;
+
+    // Xây dựng điều kiện tìm kiếm
+    let whereClause = {};
+
+    // Tìm kiếm theo tiêu đề
+    if (search) {
+      whereClause.title = {
+        [Op.like]: `%${search}%`,
+      };
+    }
+
+    // Đếm tổng số bài viết thỏa mãn điều kiện
+    const { count } = await Post.findAndCountAll({
+      where: whereClause,
+      distinct: true,
     });
-    return posts;
+
+    // Lấy danh sách bài viết với phân trang và sắp xếp
+    const posts = await Post.findAll({
+      where: whereClause,
+      limit,
+      offset,
+      order: [["title", sort_order.toUpperCase()]],
+    });
+
+    // Trả về dữ liệu kèm thông tin phân trang
+    return {
+      posts,
+      pagination: {
+        total: count,
+        totalPages: Math.ceil(count / limit),
+        currentPage: page,
+        limit,
+      },
+    };
   } catch (error) {
-    console.error("Error fetching posts:", error.message);
+    console.error("Error fetching list of posts:", error.message);
     throw error;
   }
 };
