@@ -364,6 +364,9 @@ const scanQRCode = async (order_id) => {
     const { Order, Ticket, Seat, Showtime, Movie, Room, Cinema } = require("../models");
 
     // Tìm đơn hàng trong database
+    // let order = await Order.findOne({
+    //   where: { id: order_id }
+    // });
     const order = await Order.findOne({
       include: [
         {
@@ -403,56 +406,6 @@ const scanQRCode = async (order_id) => {
 
     if (!order) {
       throw new Error("Không tìm thấy đơn hàng");
-    }
-
-    // Lấy thông tin thời gian và thời lượng phim
-    const showDate = new Date(order.Showtime.show_date);
-    const startTime = order.Showtime.start_time;
-    const duration = order.Showtime.Movie.duration;
-
-    // Chuyển đổi startTime từ định dạng "HH:MM:SS" sang Date
-    const [hours, minutes, seconds] = startTime.split(':').map(Number);
-    showDate.setHours(hours, minutes, seconds);
-
-    // Tính thời gian kết thúc phim
-    const endTime = new Date(showDate);
-    endTime.setMinutes(endTime.getMinutes() + duration);
-
-    // Lấy thời gian hiện tại
-    const currentTime = new Date();
-
-    // Tính thời gian cho phép quét mã (10 phút trước giờ chiếu đến 10 phút trước kết thúc)
-    const scanStartTime = new Date(showDate);
-    scanStartTime.setMinutes(scanStartTime.getMinutes() - 10);
-
-    const scanEndTime = new Date(endTime);
-    scanEndTime.setMinutes(scanEndTime.getMinutes() - 10);
-
-    // Kiểm tra xem thời gian hiện tại có nằm trong khoảng thời gian cho phép không
-    if (currentTime < scanStartTime) {
-      return {
-        status: 400,
-        success: false,
-        error: true,
-        message: `Quá sớm để quét vé. Vui lòng quét vé trong khoảng 10 phút trước giờ chiếu (${showDate.toLocaleTimeString('vi-VN')})`,
-        data: {
-          currentTime: currentTime.toLocaleString('vi-VN'),
-          allowedScanTime: scanStartTime.toLocaleString('vi-VN')
-        }
-      };
-    }
-
-    if (currentTime > scanEndTime) {
-      return {
-        status: 400,
-        success: false,
-        error: true,
-        message: `Quá muộn để quét vé. Thời gian cho phép quét đã kết thúc (10 phút trước khi phim kết thúc)`,
-        data: {
-          currentTime: currentTime.toLocaleString('vi-VN'),
-          endScanTime: scanEndTime.toLocaleString('vi-VN')
-        }
-      };
     }
 
     // Kiểm tra trạng thái đơn hàng
