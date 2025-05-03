@@ -11,6 +11,7 @@ const {
   Showtime,
   Room,
   Cinema,
+  User,
   sequelize
 } = require("../models");
 const { createMovieActor, deleteMovieActor } = require("./movieActorService");
@@ -233,6 +234,7 @@ const getAllMoviesByAdmin = async () => {
     throw error;
   }
 };
+
 
 const createMovieWithRelations = async ({
   name,

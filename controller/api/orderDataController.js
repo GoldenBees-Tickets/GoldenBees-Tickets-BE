@@ -1,4 +1,4 @@
-const { getOrderByUserId, getAllOrders, getOrdersPagination } = require("../../service/orderService");
+const { getOrderByUserId, getAllOrders, getOrdersPagination, getAllOrdersByBranchService } = require("../../service/orderService");
 const { resErrors } = require("../common/common");
 
 
@@ -48,6 +48,17 @@ class ApiOrderDataController {
         res.json(response);
     } catch (error) {
       console.error("Error getting orders with pagination:", error);
+      resErrors(res, 500, "Internal Server Error");
+    }
+  }
+
+  static async getAllOrdersByBranchController(req, res) {
+    try {
+      const {id} = req.params;
+      const orders = await getAllOrdersByBranchService(id);
+      res.json(orders);
+    } catch (error) {
+      console.error("Error getting all orders by branch:", error.message);
       resErrors(res, 500, "Internal Server Error");
     }
   }

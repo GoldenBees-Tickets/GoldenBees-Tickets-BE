@@ -1,5 +1,5 @@
 const { resErrors, resData } = require("../common/common");
-const { getAllCinemas, createCinema, updateCinema, deleteCinema, getCinema, getCinemaByBranchId, getAllCinemasNotPagination } = require("../../service/cinemaService");
+const { getAllCinemas, createCinema, updateCinema, deleteCinema, getCinema, getCinemaByBranchId, getAllCinemasNotPagination, getCinemasForDashboardByBranchService } = require("../../service/cinemaService");
 
 class ApiCinemaController {
     static async index(req, res) {
@@ -47,6 +47,17 @@ class ApiCinemaController {
             const cinemas = await getCinemaByBranchId(branch_id);            
             const message = "Get cinemas successfully";
             res.json({ message, cinemas });
+        } catch (error) {
+            console.error("Error fetching cinema", error.message);
+            resErrors(res, 500, error.message || "Internal Server Error");
+        }
+    }
+
+    static async getCinemasForDashboardByBranch(req, res) {
+        try {
+            const { id } = req.params;
+            const cinemas = await getCinemasForDashboardByBranchService(id);            
+            res.json(cinemas);
         } catch (error) {
             console.error("Error fetching cinema", error.message);
             resErrors(res, 500, error.message || "Internal Server Error");

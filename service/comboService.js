@@ -101,9 +101,7 @@ const createCombo = async ({ name, price, profile_picture, items }) => {
 // Service để cập nhật thông tin combo
 const updateCombo = async (id, { name, price, profile_picture, ComboItems }) => {
     const transaction = await sequelize.transaction();
-    try {
-        console.log("UPDATE COMBO DATA:", { id, name, price, profile_picture, ComboItems });
-        
+    try {        
         // Kiểm tra xem combo có tồn tại không
         const existingCombo = await Combo.findByPk(id, { transaction });
         if (!existingCombo) {
@@ -131,9 +129,7 @@ const updateCombo = async (id, { name, price, profile_picture, ComboItems }) => 
                     product_id: product_id,
                     quantity: item.quantity,
                 };
-            });
-            
-            console.log("CREATING COMBO ITEMS:", comboItemsData);
+            });            
             await ComboItem.bulkCreate(comboItemsData, { transaction });
         }
 
