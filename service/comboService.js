@@ -102,6 +102,8 @@ const createCombo = async ({ name, price, profile_picture, items }) => {
 const updateCombo = async (id, { name, price, profile_picture, ComboItems }) => {
     const transaction = await sequelize.transaction();
     try {
+        console.log("UPDATE COMBO DATA:", { id, name, price, profile_picture, ComboItems });
+        
         // Kiểm tra xem combo có tồn tại không
         const existingCombo = await Combo.findByPk(id, { transaction });
         if (!existingCombo) {
@@ -121,11 +123,17 @@ const updateCombo = async (id, { name, price, profile_picture, ComboItems }) => 
 
         // Thêm combo items mới
         if (ComboItems && ComboItems.length > 0) {
-            const comboItemsData = ComboItems.map(({ product_id, quantity }) => ({
-                combo_id: id,
-                product_id,
-                quantity,
-            }));
+            const comboItemsData = ComboItems.map((item) => {
+                // Kiểm tra và sử dụng đúng key - có thể là foodAndDrinkId hoặc product_id
+                const product_id = item.foodAndDrinkId || item.product_id;
+                return {
+                    combo_id: id,
+                    product_id: product_id,
+                    quantity: item.quantity,
+                };
+            });
+            
+            console.log("CREATING COMBO ITEMS:", comboItemsData);
             await ComboItem.bulkCreate(comboItemsData, { transaction });
         }
 
@@ -133,12 +141,20 @@ const updateCombo = async (id, { name, price, profile_picture, ComboItems }) => 
         await transaction.commit();
 
         // Lấy lại thông tin combo đã cập nhật
-        const updatedCombo = await Combo.findOne({ where: { id }, include: ComboItem });
+        const updatedCombo = await Combo.findOne({ 
+            where: { id }, 
+            include: [{
+                model: ComboItem,
+                include: [{
+                    model: FoodAndDrink
+                }]
+            }]
+        });
         return updatedCombo;
     } catch (error) {
         // Rollback nếu có lỗi
         await transaction.rollback();
-        console.error("Lỗi khi cập nhật combo:", error.message);
+        console.error("Lỗi khi cập nhật combo:", error);
         throw new Error(error.message || "Lỗi khi cập nhật combo");
     }
 };

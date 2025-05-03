@@ -6,6 +6,11 @@ const {
     updateFoodAndDrink,
     deleteFoodAndDrink
 } = require("../../service/foodAndDrinkService");
+const { uploadToCloudinary } = require("../../utils/cloudinary");
+
+// Định nghĩa thư mục lưu trữ trên Cloudinary
+const uploadFolder = "food_and_drinks";
+
 class ApiFoodAndDrinkController {
     static async index(req, res) {
         try {
@@ -48,17 +53,54 @@ class ApiFoodAndDrinkController {
 
     static async create(req, res) {
         try {
+            console.log("REQUEST BODY:", req.body);
+            console.log("REQUEST FILE:", req.file);
+            console.log("REQUEST HEADERS:", req.headers);
+            console.log("CONTENT TYPE:", req.headers['content-type']);
+            
+            // Đảm bảo body không rỗng
+            if (!req.body || Object.keys(req.body).length === 0) {
+                return resErrors(res, 400, "Không nhận được dữ liệu. Vui lòng kiểm tra form data.");
+            }
+            
             const { name, type, price } = req.body;
+            
+            // Kiểm tra các trường bắt buộc
+            if (!name || !type) {
+                return resErrors(res, 400, "Tên và loại món ăn là bắt buộc.");
+            }
+            
             const file = req.file;
+            let profile_picture = null;
 
-            const uploadFileName = file.originalname.split('.')[0]; // Lấy tên file không có đuôi
+            if (file) {
+                try {
+                    console.log("File details:", {
+                        fieldname: file.fieldname,
+                        originalname: file.originalname,
+                        mimetype: file.mimetype,
+                        size: file.size,
+                        buffer: file.buffer ? "Buffer exists" : "No buffer",
+                        path: file.path ? file.path : "No path"
+                    });
+                    
+                    const uploadFileName = `food_drink_${Date.now()}_${file.originalname.split('.')[0]}`; // Tạo tên file động
+                    profile_picture = await uploadToCloudinary(file, uploadFolder, uploadFileName);
+                    console.log("UPLOAD SUCCESS:", profile_picture);
+                } catch (cloudinaryError) {
+                    console.error("CLOUDINARY ERROR:", cloudinaryError);
+                    // Tiếp tục thực hiện tạo mới mà không có hình ảnh
+                    profile_picture = null;
+                }
+            }
 
-            const profile_picture = await uploadToCloudinary(file, uploadFolder, uploadFileName);
             const newFoodAndDrink = await createFoodAndDrink({ name, type, price, profile_picture });
+            console.log("CREATE SUCCESS:", newFoodAndDrink);
             const message = "Tạo mới thực phẩm hoặc đồ uống thành công";
             resData(res, 201, message, newFoodAndDrink);
         } catch (error) {
-            console.error("Lỗi khi tạo thực phẩm hoặc đồ uống", error.message);
+            console.error("Lỗi khi tạo thực phẩm hoặc đồ uống", error);
+            console.error("ERROR STACK:", error.stack);
             resErrors(res, 500, error.message || "Lỗi khi tạo thực phẩm hoặc đồ uống");
         }
     }
@@ -66,24 +108,62 @@ class ApiFoodAndDrinkController {
 
     static async update(req, res) {
         try {
+            console.log("UPDATE REQUEST BODY:", req.body);
+            console.log("UPDATE REQUEST FILE:", req.file);
+            console.log("UPDATE REQUEST HEADERS:", req.headers);
+            console.log("UPDATE CONTENT TYPE:", req.headers['content-type']);
+            
             const { id } = req.params;
-            const { name, type, price } = req.body;
-
+            const { name, type, price, profile_picture } = req.body;
+            
+            // Kiểm tra các trường bắt buộc
+            if (!name || !type) {
+                return resErrors(res, 400, "Tên và loại món ăn là bắt buộc.");
+            }
+            
             const file = req.file;
+            let updatedProfilePicture = undefined; // Để undefined nếu không có file, giữ nguyên giá trị cũ
 
-            const uploadFileName = file.originalname.split('.')[0]; // Lấy tên file không có đuôi
+            // Nếu có file mới, upload lên Cloudinary
+            if (file) {
+                try {
+                    console.log("Update file details:", {
+                        fieldname: file.fieldname,
+                        originalname: file.originalname,
+                        mimetype: file.mimetype,
+                        size: file.size,
+                        buffer: file.buffer ? "Buffer exists" : "No buffer",
+                        path: file.path ? file.path : "No path"
+                    });
+                    
+                    const uploadFileName = `food_drink_${Date.now()}_${file.originalname.split('.')[0]}`; // Tạo tên file động
+                    updatedProfilePicture = await uploadToCloudinary(file, uploadFolder, uploadFileName);
+                    console.log("UPDATE UPLOAD SUCCESS:", updatedProfilePicture);
+                } catch (cloudinaryError) {
+                    console.error("UPDATE CLOUDINARY ERROR:", cloudinaryError);
+                    // Tiếp tục thực hiện cập nhật mà không thay đổi hình ảnh
+                    updatedProfilePicture = undefined;
+                }
+            } 
+            // Nếu người dùng gửi "null" để xóa ảnh
+            else if (profile_picture === "null") {
+                console.log("Removing image for item:", id);
+                updatedProfilePicture = null; // Đặt giá trị null để xóa ảnh
+            }
 
-            const profile_picture = await uploadToCloudinary(file, uploadFolder, uploadFileName);
-            const updatedFoodAndDrink = await updateFoodAndDrink(id, {
-                name,
-                type,
-                price,
-                profile_picture
-            });
+            // Chỉ cập nhật hình ảnh nếu có file mới hoặc xóa ảnh
+            const updateData = { name, type, price };
+            if (updatedProfilePicture !== undefined) {
+                updateData.profile_picture = updatedProfilePicture;
+            }
+
+            const updatedFoodAndDrink = await updateFoodAndDrink(id, updateData);
+            console.log("UPDATE SUCCESS:", updatedFoodAndDrink);
             const message = "Cập nhật thực phẩm hoặc đồ uống thành công";
             resData(res, 200, message, updatedFoodAndDrink);
         } catch (error) {
-            console.error("Lỗi khi cập nhật thực phẩm hoặc đồ uống", error.message);
+            console.error("Lỗi khi cập nhật thực phẩm hoặc đồ uống", error);
+            console.error("UPDATE ERROR STACK:", error.stack);
             resErrors(res, 500, error.message || "Lỗi khi cập nhật thực phẩm hoặc đồ uống");
         }
     }
