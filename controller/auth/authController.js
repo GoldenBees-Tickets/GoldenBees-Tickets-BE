@@ -16,7 +16,7 @@ class ApiAuthController {
       res.json(data);
     } catch (error) {
       console.error("Error fetching user data:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -24,7 +24,7 @@ class ApiAuthController {
     try {
       const { token } = req.body;
       if (!token) {
-        return res.status(400).json({ message: 'Token is required' });
+        return res.status(400).json({ message: 'Token là bắt buộc' });
       }
       const ticket = await client.verifyIdToken({
         idToken: token,
@@ -49,7 +49,7 @@ class ApiAuthController {
       }
     } catch (error) {
       console.error("Error verify Google Token:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -61,7 +61,7 @@ class ApiAuthController {
       res.json(data);
     } catch (error) {
       console.error("Error creating user:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -72,7 +72,7 @@ class ApiAuthController {
       res.json(newPass);
     } catch (error) {
       console.error("Error reset password:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -83,7 +83,7 @@ class ApiAuthController {
       res.json(new_pass);             
     } catch (error) {
       console.error("Error reset password:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -92,12 +92,12 @@ class ApiAuthController {
       const { refreshToken } = req.body;
       
       if (!refreshToken) {
-        return res.status(401).json({ message: "No refresh token provided" });
+        return res.status(401).json({ message: "Không có refresh token" });
       }
   
       jwt.verify(refreshToken, KEY_REFRESH_TOKEN, async (err, user) => {
         if (err) {
-          return res.status(403).json({ message: "Invalid refresh token" });
+          return res.status(403).json({ message: "Refresh token không hợp lệ" });
         }
         let id = user.id;
         const newUser = await getUser(id)
@@ -117,7 +117,7 @@ class ApiAuthController {
       });
     } catch (error) {
       console.error("Error refreshing token:", error);
-      res.status(500).json({ message: error.message || "Internal Server Error" });
+      res.status(500).json({ message: error.message || "Lỗi máy chủ nội bộ" });
     }
   }
 
@@ -128,7 +128,7 @@ class ApiAuthController {
       res.json(data);
     } catch (error) {
       console.error("Error active account:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -139,7 +139,7 @@ class ApiAuthController {
       res.json(data);
     } catch (error) {
       console.error("Error resend active account:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 }

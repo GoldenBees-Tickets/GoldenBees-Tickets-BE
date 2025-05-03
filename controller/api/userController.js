@@ -21,7 +21,7 @@ class ApiUserController {
       res.json({ message, ...result });
     } catch (error) {
       console.error("Error fetching user data:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -33,7 +33,7 @@ class ApiUserController {
       res.json({ message, ...result });
     } catch (error) {
       console.error("Error fetching admin branches data:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -56,7 +56,7 @@ class ApiUserController {
       res.json(user);
     } catch (error) {
       console.error("Error fetching user data:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -69,7 +69,7 @@ class ApiUserController {
       res.json({ message, user });
     } catch (error) {
       console.error("Error creating user:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -82,7 +82,7 @@ class ApiUserController {
       let userData = {};
 
       if (!checkUser) {
-        return {status: 404, message: "User not found", error: true, success: false};
+        return {status: 404, message: "Không tìm thấy người dùng", error: true, success: false};
       }
 
       const file = req?.file || "";
@@ -108,7 +108,7 @@ class ApiUserController {
       res.json(data);
     } catch (error) {
       console.error("Error creating user:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -119,7 +119,7 @@ class ApiUserController {
       res.json(data);
     } catch (error) {
       console.error("Error creating user:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -131,7 +131,7 @@ class ApiUserController {
       res.json(data);
     } catch (error) {
       console.error("Error updating user:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 
@@ -143,7 +143,7 @@ class ApiUserController {
       res.json(data);
     } catch (error) {
       console.error("Error updating user:", error);
-      resErrors(res, 500, error.message || "Internal Server Error");
+      resErrors(res, 500, error.message || "Lỗi máy chủ nội bộ");
     }
   }
 }

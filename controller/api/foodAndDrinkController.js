@@ -120,7 +120,7 @@ class ApiFoodAndDrinkController {
             if (!name || !type) {
                 return resErrors(res, 400, "Tên và loại món ăn là bắt buộc.");
             }
-            
+
             const file = req.file;
             let updatedProfilePicture = undefined; // Để undefined nếu không có file, giữ nguyên giá trị cũ
 
