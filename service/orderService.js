@@ -761,6 +761,112 @@ const getOrdersPagination = async (options = {}) => {
     throw error;
   }
 }
+
+
+const getListOrdersByBranchIdService = async (id, options = {}) => {
+  try {
+    const user = await User.findOne({ where: { id } });
+    if (!user) {
+      return { status: 404, success: false, error: "Không tìm thấy thông tin chi nhánh" };
+    }
+    const branch_id = user.branch_id;
+
+    const {
+      page = 1,
+      limit = 20,
+      search = '',
+      sort_order = 'desc',
+    } = options;
+
+    const offset = (page - 1) * limit;
+
+    // Điều kiện lọc
+    const whereClause = {};
+
+    // Chuẩn hóa thứ tự sắp xếp
+    const sortOrder = ['asc', 'desc'].includes(sort_order.toLowerCase())
+     ? sort_order.toUpperCase()
+     : 'DESC';
+
+    // Lấy dữ liệu đơn hàng GIỐNG HỆT getOrdersPagination
+    const { count, rows: allOrders } = await Order.findAndCountAll({
+      where: whereClause,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [['order_date', sortOrder]],
+      attributes: ["id", "order_date", "qr_code", "refund_status", "status", "showtime_id", "total"],
+      include: [
+        {
+          model: Ticket,
+          attributes: ["id"],
+          required: false,
+          include: [
+            {
+              model: Seat,
+              attributes: ["seat_row", "seat_number"],
+              required: false,
+            },
+          ],
+        },
+        {
+          model: Showtime,
+          attributes: ["id", "start_time", "show_date"],
+          required: false,
+          include: [
+            {
+              model: Movie,
+              attributes: ["name", "poster", "age_rating"],
+              required: false,
+            },
+            {
+              model: Room,
+              attributes: ["name"],
+              required: false,
+              include: [
+                {
+                  model: Cinema,
+                  attributes: ["name", "branch_id"],
+                  required: false,
+                  include: [
+                    {
+                      model: Branch,
+                      attributes: ["id", "name"],
+                      required: false,
+                    }
+                  ]
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      distinct: true,
+    });
+
+    // Filter sau khi lấy dữ liệu (không ảnh hưởng đến SQL query)
+    const orders = allOrders.filter(order => {
+      const cinema = order.Showtime?.Room?.Cinema;
+      return cinema && cinema.branch_id === branch_id;
+    });
+    // Giữ nguyên pagination từ query ban đầu
+    const totalPages = Math.ceil(count / limit);
+
+    return {
+      orders,
+      pagination: {
+        total: count,
+        totalPages,
+        currentPage: parseInt(page),
+        limit: parseInt(limit),
+      },
+      branch_id: branch_id,
+    };
+  } catch (error) {
+    console.error("Lỗi trong getListOrdersByBranchIdService:", error);
+    throw error;
+  }
+};
+
 module.exports = {
   payWithMoMo,
   handleCallback,
@@ -770,5 +876,6 @@ module.exports = {
   getOrderByUserId,
   getAllOrders,
   getOrdersPagination,
-  getAllOrdersByBranchService
+  getAllOrdersByBranchService,
+  getListOrdersByBranchIdService
 };

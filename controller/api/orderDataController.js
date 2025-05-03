@@ -1,4 +1,4 @@
-const { getOrderByUserId, getAllOrders, getOrdersPagination, getAllOrdersByBranchService } = require("../../service/orderService");
+const { getOrderByUserId, getAllOrders, getOrdersPagination, getAllOrdersByBranchService, getListOrdersByBranchIdService } = require("../../service/orderService");
 const { resErrors } = require("../common/common");
 
 
@@ -52,6 +52,35 @@ class ApiOrderDataController {
     }
   }
 
+  static async getListOrdersByBranchIdController(req, res) {
+    
+    try {
+        const {id} = req.params;
+        let page = parseInt(req.query.page);
+      
+        if (isNaN(page)) page = null;    
+                
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+        const sort_order = req.query.sort_order || 'desc';
+
+        const result = await getListOrdersByBranchIdService(id, { page, limit, search, sort_order });
+        // Format response to match expected structure
+        const response = {
+          status: 200,
+          success: true,
+          error: null,
+          data: result.orders || [],
+          pagination: result.pagination
+        };
+
+        res.json(response);
+    } catch (error) {
+      console.error("Error getting orders with pagination:", error);
+      resErrors(res, 500, "Internal Server Error");
+    }
+  }
+
   static async getAllOrdersByBranchController(req, res) {
     try {
       const {id} = req.params;
@@ -62,6 +91,8 @@ class ApiOrderDataController {
       resErrors(res, 500, "Internal Server Error");
     }
   }
+
+
 }
 
 module.exports = ApiOrderDataController;

@@ -11,6 +11,10 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.INTEGER,
                 allowNull: true,
                 onDelete: 'CASCADE',
+                references: {
+                    model: 'Movie',
+                    key: 'id'
+                },
             },
             show_date: {
                 type: DataTypes.DATEONLY, // Chỉ ngày (yyyy-mm-dd)
@@ -35,6 +39,7 @@ module.exports = (sequelize, DataTypes) => {
             },
         },
         {
+            tableName: 'showtimes', 
             timestamps: true,
             paranoid: true,
         }

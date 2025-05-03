@@ -16,5 +16,6 @@ router.get("/status/:orderId", ApiOrderontroller.checkPaymentStatus);
 router.get("/:id", ApiOrderDataController.getOrderByUserId);
 router.get("/", AuthorizationAdmin, ApiOrderDataController.getAllOrdersController);
 router.get("/branch/:id", AuthorizationBranchAdmin, ApiOrderDataController.getAllOrdersByBranchController);
+router.get("/list/branch/:id", AuthorizationBranchAdmin, ApiOrderDataController.getListOrdersByBranchIdController);
 
 module.exports = router;
