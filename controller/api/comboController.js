@@ -58,16 +58,41 @@ class ApiComboController {
 
   static async create(req, res) {
     try {
+        console.log("CREATE COMBO REQUEST:", {
+            body: req.body,
+            file: req.file ? "File exists" : "No file"
+        });
+        
         const { name, price, items } = req.body;
         const file = req.file;
+        
+        if (!file) {
+            return resErrors(res, 400, "Vui lòng tải lên hình ảnh cho combo");
+        }
         
         const uploadFileName = file.originalname.split(".")[0];
 
         // Upload ảnh lên Cloudinary
         const url = await uploadToCloudinary(file, uploadFolder, uploadFileName);
         
+        // Parse items từ JSON string thành object
+        let parsedItems = items;
+        if (typeof items === 'string') {
+            try {
+                parsedItems = JSON.parse(items);
+            } catch (e) {
+                console.error("Error parsing items:", e);
+                return resErrors(res, 400, "Format của items không hợp lệ");
+            }
+        }
+        
         // Gọi service để tạo combo và xử lý transaction
-        const newCombo = await createCombo({ name, price, profile_picture: url, items });
+        const newCombo = await createCombo({ 
+            name, 
+            price, 
+            profile_picture: url, 
+            items: parsedItems 
+        });
 
         resData(res, 201, "Tạo combo thành công!", newCombo);
     } catch (error) {
@@ -78,26 +103,58 @@ class ApiComboController {
 
  static async update(req, res) {
   try {
+    console.log("UPDATE COMBO REQUEST BODY:", req.body);
+    console.log("UPDATE COMBO REQUEST FILE:", req.file);
+    
     const { id } = req.params;
-    const { name, price, ComboItems } = req.body;
-
+    const { name, price, items } = req.body;
+    
+    // Kiểm tra và parse items nếu cần
+    let parsedItems = items;
+    if (typeof items === 'string') {
+      try {
+        parsedItems = JSON.parse(items);
+      } catch (e) {
+        console.error("Error parsing items:", e);
+        return resErrors(res, 400, "Format của items không hợp lệ");
+      }
+    }
+    
+    // Chuẩn bị dữ liệu cập nhật
+    const updateData = { name, price };
+    
+    // Xử lý file nếu có
     const file = req.file;
-
-    const uploadFileName = file.originalname.split(".")[0];
-
-    // Upload ảnh lên Cloudinary
-    const url = await uploadToCloudinary(file, uploadFolder, uploadFileName);
-
+    if (file) {
+      try {
+        console.log("Update combo file details:", {
+          originalname: file.originalname,
+          size: file.size
+        });
+        
+        const uploadFileName = `combo_${Date.now()}_${file.originalname.split(".")[0]}`;
+        const url = await uploadToCloudinary(file, uploadFolder, uploadFileName);
+        updateData.profile_picture = url;
+        console.log("Combo image uploaded:", url);
+      } catch (cloudinaryError) {
+        console.error("Cloudinary upload error:", cloudinaryError);
+        return resErrors(res, 500, "Lỗi khi tải lên hình ảnh");
+      }
+    }
+    
+    // Thêm items vào dữ liệu cập nhật nếu có
+    if (parsedItems) {
+      updateData.ComboItems = parsedItems;
+    }
+    
     // Gọi service để cập nhật combo
-    const updatedCombo = await updateCombo(id, { name, price, profile_picture: url, ComboItems });
-
-    res.status(200).json({
-      message: "Cập nhật combo thành công",
-      updatedCombo,
-    });
+    const updatedCombo = await updateCombo(id, updateData);
+    
+    resData(res, 200, "Cập nhật combo thành công", updatedCombo);
   } catch (error) {
     // Log lỗi và gửi phản hồi lỗi về client
-    console.error("Lỗi khi cập nhật combo", error.message);
+    console.error("Lỗi khi cập nhật combo", error);
+    console.error("ERROR STACK:", error.stack);
     resErrors(res, 500, error.message || "Lỗi khi cập nhật combo");
   }
 }
