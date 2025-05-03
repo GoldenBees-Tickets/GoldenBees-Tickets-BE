@@ -6,6 +6,7 @@ const {
   createPost,
   updatePost,
   deletePost,
+  getPostNotPage,
 } = require("../../service/postService");
 const { uploadToCloudinary, deleteFromCloudinary } = require("../../utils/cloudinary");
 
@@ -168,6 +169,16 @@ class ApiPostController {
       res.json({ message: "Post deleted successfully" });
     } catch (error) {
       console.error("Error deleting post:", error.message);
+      resErrors(res, 500, error.message || "Internal Server Error");
+    }
+  }
+
+  static async getPostNotPageController(req, res) {
+    try {
+      const data = await getPostNotPage();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching posts:", error.message);
       resErrors(res, 500, error.message || "Internal Server Error");
     }
   }

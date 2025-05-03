@@ -116,6 +116,22 @@ const deletePost = async (id) => {
   }
 };
 
+const getPostNotPage = async () => {
+  try {
+    const data = await Post.findAll();
+    return {
+      status: 200,
+      message: "Get all posts successfully",
+      data: data,
+      success: true,
+      error: false,
+    };
+  } catch (error) {
+    console.error("Error fetching post:", error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllPosts,
   getPost,
@@ -123,4 +139,5 @@ module.exports = {
   createPost,
   updatePost,
   deletePost,
+  getPostNotPage
 }; 

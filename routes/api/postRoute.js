@@ -6,6 +6,7 @@ const upload = require("../../utils/multer");
 
 // Public routes
 router.get("/", ApiPostController.index);
+router.get("/getAll", ApiPostController.getPostNotPageController);
 router.get("/search", ApiPostController.search);
 router.get("/:id", ApiPostController.show);
 

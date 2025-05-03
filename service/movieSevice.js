@@ -85,7 +85,8 @@ const getAllMovies = async (options = {}) => {
             sequelize.literal(`(
               SELECT COUNT(*)
               FROM Showtimes AS st
-              WHERE st.movie_id = Movie.id AND st.start_time > NOW()
+              WHERE st.movie_id = Movie.id
+                AND TIMESTAMP(st.show_date, st.start_time) > NOW()
             )`),
             'total_showtimes'
           ]
@@ -147,7 +148,8 @@ const getAllMoviesByUsers = async () => {
             sequelize.literal(`(
               SELECT COUNT(*)
               FROM Showtimes AS st
-              WHERE st.movie_id = Movie.id AND st.start_time > NOW()
+              WHERE st.movie_id = Movie.id
+                AND TIMESTAMP(st.show_date, st.start_time) > NOW()
             )`),
             'total_showtimes'
           ]
