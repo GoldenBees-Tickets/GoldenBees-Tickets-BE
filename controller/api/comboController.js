@@ -57,12 +57,7 @@ class ApiComboController {
   }
 
   static async create(req, res) {
-    try {
-        console.log("CREATE COMBO REQUEST:", {
-            body: req.body,
-            file: req.file ? "File exists" : "No file"
-        });
-        
+    try {  
         const { name, price, items } = req.body;
         const file = req.file;
         
@@ -102,10 +97,7 @@ class ApiComboController {
 }
 
  static async update(req, res) {
-  try {
-    console.log("UPDATE COMBO REQUEST BODY:", req.body);
-    console.log("UPDATE COMBO REQUEST FILE:", req.file);
-    
+  try {    
     const { id } = req.params;
     const { name, price, items } = req.body;
     
@@ -127,15 +119,9 @@ class ApiComboController {
     const file = req.file;
     if (file) {
       try {
-        console.log("Update combo file details:", {
-          originalname: file.originalname,
-          size: file.size
-        });
-        
         const uploadFileName = `combo_${Date.now()}_${file.originalname.split(".")[0]}`;
         const url = await uploadToCloudinary(file, uploadFolder, uploadFileName);
         updateData.profile_picture = url;
-        console.log("Combo image uploaded:", url);
       } catch (cloudinaryError) {
         console.error("Cloudinary upload error:", cloudinaryError);
         return resErrors(res, 500, "Lỗi khi tải lên hình ảnh");

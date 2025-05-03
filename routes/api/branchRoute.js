@@ -9,5 +9,4 @@ router.post("/", AuthorizationAdmin, ApiBranchController.create);
 router.put("/:id", AuthorizationAdmin, ApiBranchController.update);
 router.delete("/:id", AuthorizationAdmin, ApiBranchController.delete)
 
-
 module.exports = router;

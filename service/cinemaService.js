@@ -1,7 +1,5 @@
-const { where } = require("sequelize");
-const { Cinema } = require("../models");
+const { Cinema, User } = require("../models");
 const { Op } = require('sequelize');
-const { error } = require("console");
 
 // Lấy tất cả các cinema
 const getAllCinemas = async (options = {}) => {
@@ -66,6 +64,25 @@ const getAllCinemasNotPagination = async () => {
         };
     } catch (error) {
         console.error("Error fetching list of cinemas", error.message);
+        throw error;
+    }
+}
+
+const getCinemasForDashboardByBranchService = async (id) => {
+    try {
+        const user = await User.findOne({ where: { id } });
+        if (!user) {
+            return { status: 404, message: "User not found" };
+        }
+        const cinemas = await Cinema.findAll({ where: { branch_id: user.branch_id } });
+        return {
+            status: 200,
+            success: true,
+            error: false,
+            data: cinemas
+        };
+    } catch (error) {
+        console.error("Error fetching cinema", error.message);
         throw error;
     }
 }
@@ -144,5 +161,6 @@ module.exports = {
     updateCinema,
     deleteCinema,
     getAllCinemasForBoxchat,
-    getAllCinemasNotPagination
+    getAllCinemasNotPagination,
+    getCinemasForDashboardByBranchService
 };

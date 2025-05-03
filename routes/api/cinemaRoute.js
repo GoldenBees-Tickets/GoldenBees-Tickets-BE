@@ -8,6 +8,7 @@ router.get("/", ApiCenimaController.index);
 router.get("/getAll", ApiCenimaController.getAllCinemaNoPagination);
 router.get("/:id", ApiCenimaController.show);
 router.get("/branch/:id", ApiCenimaController.getByBranchId);
+router.get("/dashboard/:id", ApiCenimaController.getCinemasForDashboardByBranch);
 router.post("/", AuthorizationBranchAdmin, ApiCenimaController.create);
 router.put("/:id", AuthorizationBranchAdmin, ApiCenimaController.update);
 router.delete("/:id", AuthorizationAdmin, ApiCenimaController.delete)

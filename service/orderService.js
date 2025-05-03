@@ -15,6 +15,7 @@ const {
   Order,
   OrderCombo,
   PromotionUsage,
+  Branch,
   sequelize,
 } = require("../models");
 const { Op, where } = require("sequelize");
@@ -84,6 +85,45 @@ const getAllOrders = async () => {
     throw new Error(error.message);
   }
 };
+
+
+const getAllOrdersByBranchService = async (id) => {
+  try {
+    const admin_branch = await User.findOne({where: {id}});
+    if (!admin_branch) {
+      return { status: 404, success: false, error: "Branch not found" };
+    }
+    const branch_id = admin_branch.branch_id;    
+    const orders = await Order.findAll({
+      include: [
+        {
+          model: Showtime,
+          required: true,
+          include: [
+            {
+              model: Room,
+              required: true,
+              include: [
+                {
+                  model: Cinema,
+                  required: true,
+                  where: { branch_id }, // Áp dụng filter đúng chỗ
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+        
+    return { status: 200, success: true, error: null, data: orders };
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách đơn hàng:", error.message);
+    return { status: 500, success: false, error: "Internal Server Error" };
+  }
+}
+
+    
 // Tạo signature cho MOMO
 const createMoMoSignature = (data) => {
   const rawSignature = Object.keys(data)
@@ -729,5 +769,6 @@ module.exports = {
   releaseBookedSeats,
   getOrderByUserId,
   getAllOrders,
-  getOrdersPagination
+  getOrdersPagination,
+  getAllOrdersByBranchService
 };

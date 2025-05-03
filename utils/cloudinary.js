@@ -18,7 +18,6 @@ cloudinary.config({
  */
 const uploadToCloudinary = async (file, folder, fileName) => {    
     try {
-        console.log("File received:", file);
         
         // Tạo publicId theo thư mục
         const publicId = `${folder}/${fileName}`;
@@ -57,7 +56,6 @@ const uploadToCloudinary = async (file, folder, fileName) => {
             throw new Error("Không thể xác định loại file để upload");
         }
         
-        console.log("Upload result:", uploadResult);
         return uploadResult.secure_url; // URL ảnh sau khi upload
     } catch (error) {
         console.error("Error uploading to Cloudinary:", error);
