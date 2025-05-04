@@ -1,7 +1,6 @@
-const { Op } = require("sequelize");
+const { Op, Sequelize } = require("sequelize");
 const { Showtime, Movie, Room, Cinema, Branch } = require("../models");
 const moment = require("moment-timezone");
-const { error } = require("console");
 
 // Hàm lấy showtime theo branch_id
 const getShowtimeByBranchId = async (options) => {
@@ -247,45 +246,28 @@ const getAllShowtime = async (options) => {
 const getShowtimesByMovieId = async (movie_id, options) => {
     try {
         const { branch_id, cinema_id, current_time } = options;
-        
+
         let whereCondition = {
             movie_id
         };
-        
-        // Lấy thời gian hiện tại và cache
-        const now = moment().tz('Asia/Ho_Chi_Minh'); // Sử dụng múi giờ Việt Nam
-        const todayStr = now.format("YYYY-MM-DD");
-        const currentTime = now.format("HH:mm:ss");
-                
-        // Thêm điều kiện lọc theo thời gian hiện tại nếu được yêu cầu
+
+        // Thời gian hiện tại chuẩn (theo múi giờ VN)
+        const now = moment().tz('Asia/Ho_Chi_Minh');
+        const currentDateTime = now.format("YYYY-MM-DD HH:mm:ss");
+
         if (current_time) {
-            // Nếu là ngày hiện tại, chỉ lấy các xuất chiếu có thời gian sau giờ hiện tại
-            whereCondition[Op.or] = [
-                {
-                    // Các ngày trong tương lai
-                    show_date: {
-                        [Op.gt]: todayStr
-                    }
-                },
-                {
-                    // Ngày hiện tại nhưng giờ chiếu phải lớn hơn giờ hiện tại
-                    [Op.and]: [
-                        { show_date: todayStr },
-                        { start_time: { [Op.gt]: currentTime } }
-                    ]
-                }
-            ];
+            // So sánh TIMESTAMP(show_date, start_time) > currentDateTime
+            whereCondition = {
+                ...whereCondition,
+                [Op.and]: Sequelize.literal(`TIMESTAMP(show_date, start_time) > '${currentDateTime}'`)
+            };
         }
-        
-        // Thêm điều kiện lọc theo rạp và chi nhánh
+
+        // Lọc theo branch/cinema nếu có
         let cinemaWhereCondition = {};
-        if (branch_id) {
-            cinemaWhereCondition.branch_id = branch_id;
-        }
-        if (cinema_id) {
-            cinemaWhereCondition.id = cinema_id;
-        }
-        
+        if (branch_id) cinemaWhereCondition.branch_id = branch_id;
+        if (cinema_id) cinemaWhereCondition.id = cinema_id;
+
         const showtimes = await Showtime.findAll({
             where: whereCondition,
             include: [
@@ -298,7 +280,7 @@ const getShowtimesByMovieId = async (movie_id, options) => {
                     include: [
                         {
                             model: Cinema,
-                            where: Object.keys(cinemaWhereCondition).length > 0 ? cinemaWhereCondition : undefined,
+                            where: Object.keys(cinemaWhereCondition).length ? cinemaWhereCondition : undefined,
                             include: [
                                 {
                                     model: Branch,
@@ -313,12 +295,12 @@ const getShowtimesByMovieId = async (movie_id, options) => {
             ],
             order: [["show_date", "ASC"], ["start_time", "ASC"]]
         });
-        
-        // Lọc bỏ các mục không hợp lệ và sắp xếp theo ngày, giờ
-        const validShowtimes = showtimes.filter(showtime => 
+
+        // Lọc showtime hợp lệ
+        const validShowtimes = showtimes.filter(showtime =>
             showtime.Movie && showtime.Room && showtime.Room.Cinema
         );
-                
+
         return validShowtimes;
     } catch (error) {
         console.error("Error in getShowtimesByMovieId service:", error);

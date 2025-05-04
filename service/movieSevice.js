@@ -11,7 +11,7 @@ const {
   Showtime,
   Room,
   Cinema,
-  User,
+  Review,
   sequelize
 } = require("../models");
 const { createMovieActor, deleteMovieActor } = require("./movieActorService");
@@ -138,9 +138,9 @@ const getAllMovies = async (options = {}) => {
 
 const getAllMoviesByUsers = async () => {
   try {
-    const now = new Date();
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(now.getDate() + 7);
+    const now = moment().tz('Asia/Ho_Chi_Minh');
+    const sevenDaysFromNow = moment().tz('Asia/Ho_Chi_Minh').add(7, 'days');
+    const currentDateTime = now.format('YYYY-MM-DD HH:mm:ss');
 
     const movies = await Movie.findAll({
       attributes: {
@@ -150,9 +150,17 @@ const getAllMoviesByUsers = async () => {
               SELECT COUNT(*)
               FROM Showtimes AS st
               WHERE st.movie_id = Movie.id
-                AND TIMESTAMP(st.show_date, st.start_time) > NOW()
+                AND TIMESTAMP(st.show_date, st.start_time) > STR_TO_DATE('${currentDateTime}', '%Y-%m-%d %H:%i:%s')
             )`),
             'total_showtimes'
+          ],
+          [
+            sequelize.literal(`(
+              SELECT AVG(rating)
+              FROM reviews AS r
+              WHERE r.movie_id = Movie.id
+            )`),
+            'average_rating'
           ]
         ]
       },
@@ -170,23 +178,26 @@ const getAllMoviesByUsers = async () => {
           model: MovieProducer,
           include: [{ model: Producer }],
         },
+        {
+          model: Review, // optional nếu bạn cần lấy dữ liệu từng đánh giá
+          attributes: [],
+        }
       ],
     });
 
-    // Lọc phim theo điều kiện
     const filteredMovies = movies.filter(movie => {
-      const releaseDate = new Date(movie.release_date);
+      const releaseDate = moment(movie.release_date).tz('Asia/Ho_Chi_Minh');
       const totalShowtimes = parseInt(movie.getDataValue('total_showtimes')) || 0;
 
-      if (releaseDate > sevenDaysFromNow) {
-        return true; // sắp chiếu
+      if (releaseDate.isAfter(sevenDaysFromNow)) {
+        return true;
       }
 
-      if (releaseDate <= sevenDaysFromNow && totalShowtimes > 0) {
-        return true; // đang chiếu còn suất
+      if (releaseDate.isSameOrBefore(sevenDaysFromNow) && totalShowtimes > 0) {
+        return true;
       }
 
-      return false; // đã chiếu mà hết suất => không hiển thị
+      return false;
     });
 
     return {
@@ -201,6 +212,7 @@ const getAllMoviesByUsers = async () => {
     throw error;
   }
 };
+
 
 const getAllMoviesByAdmin = async () => {
   try {
