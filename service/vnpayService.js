@@ -50,7 +50,8 @@ const vnpayService = {
         ipAddr, 
         bankCode = '', 
         orderType = 'billpayment',
-        language = 'vn'
+        language = 'vn',
+        starDiscount
       } = paymentData;
       
       // Tạo thông tin đơn hàng trong database
@@ -109,6 +110,13 @@ const vnpayService = {
       
       // Commit transaction sau khi tạo đơn hàng thành công
       await transaction.commit();
+      
+      if (starDiscount > 0) {
+        await User.decrement('star', {
+          by: starDiscount,
+          where: { id: user_id },
+        });
+      }    
       
       // Tạo extraData
       const extraData = Buffer.from(JSON.stringify({

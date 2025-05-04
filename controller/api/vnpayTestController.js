@@ -23,7 +23,8 @@ const vnpayTestController = {
         showtime_id,
         seat_ids,
         combos = [],
-        promotion_id
+        promotion_id,
+        starDiscount = 0
       } = req.body;
       
       // Kiểm tra các tham số bắt buộc
@@ -52,7 +53,8 @@ const vnpayTestController = {
         ipAddr,
         bankCode,
         language,
-        orderType
+        orderType,
+        starDiscount,
       };
       
       // Gọi service tạo URL thanh toán
