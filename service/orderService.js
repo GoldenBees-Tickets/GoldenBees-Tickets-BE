@@ -179,6 +179,7 @@ const payWithMoMo = async (data) => {
       combos,
       promotion_id,
       orderInfo = "Thanh toán vé xem phim",
+      starDiscount,
     } = data;
     showtime_id = showtime_id;
         
@@ -226,6 +227,14 @@ const payWithMoMo = async (data) => {
       await PromotionUsage.create({ user_id, promotion_id, order_id });
     }
     await transaction.commit();
+
+    if (starDiscount > 0) {
+      await User.decrement('star', {
+        by: starDiscount,
+        where: { id: user_id },
+      });
+    }    
+    
     // Tạo extraData (mã hóa booking_id, user_id, showtime_id để sau này sử dụng)
     const extraData = Buffer.from(JSON.stringify({
         order_id,

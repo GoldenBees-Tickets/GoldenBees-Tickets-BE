@@ -85,10 +85,11 @@ class ApiUserController {
         return {status: 404, message: "Không tìm thấy người dùng", error: true, success: false};
       }
 
-      const file = req?.file || "";
-      if (file) {
+      const file = req?.file;
+      
+      if (file !== undefined) {
         const uploadFileName = file.originalname.split(".")[0];
-
+        
         const image = await uploadToCloudinary(
           file,
           uploadFolder,

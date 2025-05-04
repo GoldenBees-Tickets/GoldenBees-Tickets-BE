@@ -247,6 +247,32 @@ const getAllMoviesByAdmin = async () => {
   }
 };
 
+const getAllMoviesByAddShowtime = async () => {
+  try {
+    const now = moment().tz('Asia/Ho_Chi_Minh');
+    const currentDate = now.format('YYYY-MM-DD');
+
+    const movies = await Movie.findAll({
+      where: {
+        end_date: {
+          [Op.gte]: currentDate, // Chỉ lấy phim có ngày kết thúc >= hôm nay
+        },
+      },
+    });
+
+    return {
+      status: 200,
+      success: true,
+      message: "Lấy danh sách phim thành công",
+      error: false,
+      data: movies,
+    };
+  } catch (error) {
+    console.error("Error fetching movies:", error.message);
+    throw error;
+  }
+};
+
 
 const createMovieWithRelations = async ({
   name,
@@ -558,5 +584,6 @@ module.exports = {
   getAllMoviesWithValidShowtimes,
   getAllMoviesByUsers,
   getAllMoviesForBoxchat,
-  getAllMoviesByAdmin
+  getAllMoviesByAdmin,
+  getAllMoviesByAddShowtime
 };

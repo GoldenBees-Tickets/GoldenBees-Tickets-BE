@@ -5,9 +5,9 @@ const AuthorizationAdmin = require("../../middleware/authorizationAdmin");
 const AuthorizationBranchAdmin = require("../../middleware/authorizationBranchAdmin");
 const upload = require("../../utils/multer");
 
-
 router.get("/", ApiMovieController.index);
 router.get("/getAll", ApiMovieController.getAll);
+router.get("/getAllMoviesAddShowtime", AuthorizationAdmin, ApiMovieController.getMoviesByAddShowtimeController);
 router.get("/getAllByAdmin", AuthorizationBranchAdmin, ApiMovieController.getAllByAdmin);
 router.get("/branch/:id", AuthorizationBranchAdmin, ApiMovieController.getAllByAdmin);
 router.get("/:id", ApiMovieController.show);
