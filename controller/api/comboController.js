@@ -68,7 +68,12 @@ class ApiComboController {
         const uploadFileName = file.originalname.split(".")[0];
 
         // Upload ảnh lên Cloudinary
-        const url = await uploadToCloudinary(file, uploadFolder, uploadFileName);
+        let url;
+        try {
+            url = await uploadToCloudinary(file, uploadFolder, uploadFileName);
+        } catch (cloudinaryError) {
+            return resErrors(res, 500, "Lỗi khi tải ảnh lên: " + cloudinaryError.message);
+        }
         
         // Parse items từ JSON string thành object
         let parsedItems = items;
@@ -76,8 +81,18 @@ class ApiComboController {
             try {
                 parsedItems = JSON.parse(items);
             } catch (e) {
-                console.error("Error parsing items:", e);
                 return resErrors(res, 400, "Format của items không hợp lệ");
+            }
+        }
+        
+        if (!Array.isArray(parsedItems)) {
+            return resErrors(res, 400, "Items phải là một mảng các món ăn");
+        }
+        
+        // Validate items
+        for (const item of parsedItems) {
+            if (!item.foodAndDrinkId || !item.quantity) {
+                return resErrors(res, 400, "Mỗi item phải có foodAndDrinkId và quantity");
             }
         }
         
