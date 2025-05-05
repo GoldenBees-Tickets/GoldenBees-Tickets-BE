@@ -155,11 +155,13 @@ exports.generateResponse = async (req, res) => {
             profilePicture: movie.Director.profile_picture,
           }
         : null,
-      genres: movie.MovieGenres
-        ? movie.MovieGenres.map((g) => ({
-            id: g.Genre.id,
-            name: g.Genre.name,
-          }))
+        genres: movie.MovieGenres
+        ? movie.MovieGenres
+            .filter((g) => g.Genre) // loại bỏ phần tử có Genre = null
+            .map((g) => ({
+              id: g.Genre.id,
+              name: g.Genre.name,
+            }))
         : [],
       actors: movie.MovieActors
         ? movie.MovieActors.map((a) => ({
@@ -510,7 +512,6 @@ Thành phố: ${cinema.city}
     let bookingLinks = "";
     try {
       const showtimeResult = await getShowtimesByMovieIdForBoxchat(movie.id);
-      console.log(showtimeResult);  
       if (showtimeResult && showtimeResult.status === 200 && showtimeResult.data && showtimeResult.data.length > 0) {
         showtimeInfo = "\nLịch chiếu:\n";
         bookingLinks = "\nĐường link đặt vé:\n";

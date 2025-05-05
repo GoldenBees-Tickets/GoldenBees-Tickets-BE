@@ -11,8 +11,6 @@ const { Server } = require('socket.io');
 const { handleSeatSocket, startCleanupInterval } = require('./socketSeat');
 const URL_CLIENT_BASE = process.env.URL_CLIENT_BASE;
 const PORT = process.env.PORT_SERVER || 3000;
-const cron = require('node-cron');
-const {updateStatuses} = require("./service/movieSevice");
 
 
 // Đảm bảo thư mục uploads tồn tại
@@ -32,14 +30,6 @@ const io = new Server(server, {
   }
 });
 
-// Cấu hình cron chạy mỗi ngày lúc 1h sáng
-cron.schedule('0 1 * * *', async () => {
-  try {
-    await updateStatuses();
-  } catch (err) {
-    console.error('❌ Lỗi khi cập nhật status phim:', err);
-  }
-});
 
 // Socket riêng cho booking
 const bookingIo = new Server(server, {
