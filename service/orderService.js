@@ -77,10 +77,36 @@ const getOrderByUserId = async (user_id) => {
   }
 };
 
+// const getAllOrders = async () => {
+//   try {
+//     const orders = await Order.findAll();
+//     return { status: 200, success: true, error: null, data: orders };
+//   } catch (error) {
+//     throw new Error(error.message);
+//   }
+// };
 const getAllOrders = async () => {
   try {
-    const orders = await Order.findAll();
-    return { status: 200, success: true, error: null, data: orders };
+    const orders = await Order.findAll({
+      include: {
+        model: Showtime,
+        include: {
+          model: Room,
+          include: {
+            model: Cinema,
+            attributes: ['branch_id'] // chỉ lấy branch_id
+          }
+        }
+      }
+    });
+
+    // map lại để gộp branch_id vào kết quả trả về nếu cần
+    const formatted = orders.map(order => ({
+      ...order.toJSON(),
+      branch_id: order.Showtime?.Room?.Cinema?.branch_id || null
+    }));
+
+    return { status: 200, success: true, error: null, data: formatted };
   } catch (error) {
     throw new Error(error.message);
   }
