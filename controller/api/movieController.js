@@ -5,7 +5,6 @@ const {
   createMovieWithRelations,
   updateMovieWithRelations,
   deleteMovieWithRelations,
-  updateStatuses,
   getAllMoviesWithValidShowtimes,
   getAllMoviesByUsers,
   getAllMoviesByAdmin,
