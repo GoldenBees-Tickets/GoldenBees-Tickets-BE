@@ -303,7 +303,9 @@ exports.generateResponse = async (req, res) => {
     chatHistory.push({ role: "user", parts: [{ text: message }] });
 
     // Tạo model chat từ Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash"
+    });
 
     // Tạo chat từ lịch sử
     const chat = model.startChat({
@@ -311,6 +313,8 @@ exports.generateResponse = async (req, res) => {
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 1024,
+        topP: 0.95,
+        topK: 40,
       },
     });
 
@@ -331,7 +335,10 @@ exports.generateResponse = async (req, res) => {
 
     // Lấy phản hồi
     const result = await chat.sendMessage(prompt);
-    const response = result.response.text();
+    let response = result.response.text();
+    
+    // Làm sạch định dạng Markdown từ phản hồi
+    response = cleanMarkdownFormatting(response);
 
     // Thêm phản hồi từ AI vào lịch sử
     chatHistory.push({ role: "model", parts: [{ text: response }] });
@@ -503,7 +510,7 @@ Thành phố: ${cinema.city}
     let bookingLinks = "";
     try {
       const showtimeResult = await getShowtimesByMovieIdForBoxchat(movie.id);
-      
+      console.log(showtimeResult);  
       if (showtimeResult && showtimeResult.status === 200 && showtimeResult.data && showtimeResult.data.length > 0) {
         showtimeInfo = "\nLịch chiếu:\n";
         bookingLinks = "\nĐường link đặt vé:\n";
@@ -654,74 +661,36 @@ ${ticketPolicies}
 ${bookingLinkInfo}
 
 HƯỚNG DẪN ĐẶT VÉ:
-1. Truy cập trang chủ B Cinemas hoặc ứng dụng di động
+1. Truy cập trang chủ B Cinemas
 2. Xem danh sách phim đang chiếu 
-3. Nhấp vào phim bạn muốn xem để xem chi tiết phim
-4. Ở phần dưới trang chi tiết phim, chọn suất chiếu (ngày và giờ) phù hợp
-5. Sau khi chọn suất chiếu, hệ thống sẽ chuyển bạn đến trang chọn ghế
-6. Chọn vị trí ghế bạn muốn ngồi
-7. Tiếp theo, hệ thống sẽ chuyển bạn đến trang chọn combo đồ ăn/nước uống hoặc nhập mã giảm giá (nếu có)
-8. Kiểm tra lại thông tin đặt vé
-9. Chọn phương thức thanh toán và hoàn tất đặt vé
-10. Nhận mã QR hoặc vé điện tử qua email
-
-THÔNG TIN LIÊN KẾT QUAN TRỌNG:
-- Trang danh sách phim: Truy cập trang web chính thức của B Cinemas và vào mục "Phim"
-- Trang chủ: Truy cập trang web chính thức của B Cinemas
-- Liên hệ hỗ trợ: Truy cập trang web chính thức của B Cinemas và vào mục "Liên hệ"
-- Link đặt vé trực tiếp: Nếu người dùng yêu cầu link đặt vé trực tiếp, bạn có thể cung cấp hoặc xác nhận link đó
-
-PHƯƠNG THỨC THANH TOÁN:
-- Thẻ tín dụng/ghi nợ
-- Ví điện tử (MoMo, ZaloPay, VNPay)
-- Tiền mặt tại quầy
+3. Chọn phim và suất chiếu phù hợp
+4. Chọn ghế và thanh toán
+5. Nhận mã QR hoặc vé điện tử qua email
 
 HƯỚNG DẪN VỀ CÁCH NÓI CHUYỆN:
-1. Nói chuyện cởi mở, thân thiện và gần gũi. Xưng "mình" hoặc "tôi" và gọi người dùng là "bạn".
-2. Giọng điệu tự nhiên, dễ gần như đang nói chuyện với người quen.
-3. Trả lời ngắn gọn, dễ hiểu và hữu ích, không quá dài dòng.
-4. Sử dụng tiếng Việt thuần túy, tránh từ ngữ tiếng Anh không cần thiết.
-5. Cung cấp thông tin chính xác, đầy đủ nhưng dễ tiếp cận.
-6. Khi nói về giá cả, luôn sử dụng "đồng" thay vì "đ" hoặc các ký hiệu khác.
-7. Tạo không khí thoải mái, cởi mở nhưng vẫn chuyên nghiệp.
-8. Không quá khách sáo hoặc quá trang trọng, nhưng luôn giữ sự tôn trọng.
-9. Khi chia sẻ URL, chỉ chia sẻ URL đơn thuần, TUYỆT ĐỐI KHÔNG đặt trong dấu ngoặc vuông, ngoặc tròn hoặc thêm dấu chấm sau URL. Một URL hợp lệ phải có dạng http://localhost:5173/product (KHÔNG có dấu chấm ở cuối). LUÔN đảm bảo có khoảng trống giữa URL và từ tiếp theo, KHÔNG viết liền URL với từ tiếp theo như "http://localhost:5173/product.Bạn" hoặc "http://localhost:5173/productBạn".
-10. Khi liệt kê danh sách các mục (như combo, phim, v.v.), không sử dụng dấu * hoặc các ký hiệu đánh dấu khác, chỉ sử dụng dấu gạch đầu dòng (-) hoặc liệt kê theo số (1., 2., v.v.).
-11. Không bao giờ viết tắt đơn vị tiền tệ thành "K" hay "k", luôn viết đầy đủ "000 đồng" hoặc ".000 đồng".
-12. Luôn chủ động tư vấn cho khách hàng bằng cách đặt các câu hỏi thân thiện như:
-   - "Bạn thích xem phim thể loại nào?"
-   - "Bạn đã từng đến rạp B Cinemas bao giờ chưa?"
-   - "Bạn có muốn biết thêm về các ưu đãi khi đặt vé không?"
-   - "Bạn có thắc mắc gì về cách đặt vé không?"
-13. Kết thúc mỗi câu trả lời với một câu hỏi mở để khách hàng có thể tiếp tục cuộc trò chuyện.
-14. Tỏ ra quan tâm đến trải nghiệm của khách hàng, như "Bạn thấy trải nghiệm đặt vé của chúng tôi thế nào?"
-
-QUAN TRỌNG VỀ LINK ĐẶT VÉ:
-- Khi tư vấn đặt vé, hãy hỏi thông tin từ người dùng (phim muốn xem, ngày xem, rạp) và cung cấp link đặt vé trực tiếp cho họ, KHÔNG chỉ hướng dẫn các bước đặt vé chung chung.
-
-Khi trả lời về chính sách vé:
-- Luôn nhấn mạnh rằng vé ĐÃ MUA KHÔNG THỂ đổi hoặc trả lại trong mọi trường hợp
-- Hướng dẫn khách hàng kiểm tra kỹ thông tin trước khi thanh toán
-- Nếu khách hàng có khiếu nại hoặc vấn đề, hướng dẫn họ liên hệ qua số hotline: 0828477808
-- Thông báo rõ ràng về thời gian hỗ trợ (8:00 - 22:00 tất cả các ngày trong tuần)
-- Nhấn mạnh rằng vé chỉ có giá trị cho đúng suất chiếu đã đặt
-- Trả lời ngắn gọn, rõ ràng và không đặt câu hỏi thêm khi giải thích về chính sách vé
+1. Xưng "mình" hoặc "tôi" và gọi người dùng là "bạn".
+2. Giọng điệu tự nhiên, thân thiện như người bạn.
+3. Trả lời ngắn gọn, súc tích, thông tin chính xác.
+4. Sử dụng tiếng Việt thuần túy, không từ ngữ tiếng Anh không cần thiết.
+5. Khi nói về giá cả, luôn sử dụng "đồng" thay vì "đ" hoặc các ký hiệu.
+6. TUYỆT ĐỐI KHÔNG dùng ký tự đặc biệt để định dạng (**, ##, ==).
+7. Khi chia sẻ URL, chỉ đưa URL đơn thuần, không đặt trong ngoặc.
+8. Khi liệt kê, chỉ dùng dấu gạch đầu dòng (-) hoặc số (1., 2.).
+9. Viết đầy đủ tiền tệ (50.000 đồng), không viết tắt (50K).
+10. Đặt câu hỏi mở ngắn gọn ở cuối trả lời.
 
 QUY TRÌNH TƯ VẤN ĐẶT VÉ:
-1. Hỏi người dùng muốn xem phim gì (ĐƯỢC PHÉP gợi ý phim cụ thể nếu họ không biết)
-2. Hỏi họ muốn xem vào ngày nào (hôm nay, ngày mai, hoặc ngày cụ thể)
-3. Hỏi họ muốn xem tại rạp nào (hoặc gợi ý các rạp có suất chiếu phù hợp)
-4. Dựa vào thông tin thu thập được, cung cấp 1-3 lựa chọn suất chiếu kèm link đặt vé
-5. Hướng dẫn họ nhấp vào link để đến trang chọn ghế
+1. Hỏi phim: "Bạn muốn xem phim gì?"
+2. Hỏi ngày: "Bạn muốn xem vào ngày nào?"
+3. Hỏi rạp: "Bạn muốn xem tại rạp nào?"
+4. Cung cấp 1-3 link đặt vé phù hợp
 
-VÍ DỤ CÁCH TƯ VẤN:
-- "Bạn muốn xem phim gì?"
-- "Bạn muốn xem vào ngày nào?"
-- "Bạn muốn xem tại rạp nào? Rạp A, B, hay C đều có suất chiếu phim này"
-- "Dựa vào thông tin bạn cung cấp, tôi gợi ý các suất chiếu sau:
-  1. Phim X tại Rạp Y ngày DD/MM vào lúc 19:30: http://localhost:5173/booking/75?room_id=3
-  2. Phim X tại Rạp Z ngày DD/MM vào lúc 20:00: http://localhost:5173/booking/82?room_id=5
-  Bạn chỉ cần nhấp vào link tương ứng với suất chiếu bạn chọn để đến trang đặt ghế."
+NGUYÊN TẮC TRẢ LỜI:
+- Trả lời ngắn gọn, chỉ 2-3 câu nếu có thể
+- Tập trung vào thông tin cần thiết, bỏ phần thừa
+- Không giới thiệu, không tóm tắt, không giải thích lại câu hỏi
+- Không sử dụng kí tự đặc biệt để định dạng
+- Câu hỏi mở ở cuối nên ngắn gọn (1 câu)
 
 Người dùng: ${currentMessage}`;
 };
@@ -838,4 +807,42 @@ const formatShowtimeTime = (sample, priceInfo) => {
   }
   
   return timeDisplay;
+};
+
+// Hàm loại bỏ định dạng Markdown khỏi phản hồi
+const cleanMarkdownFormatting = (text) => {
+  if (!text) return "";
+  
+  // Loại bỏ các dấu ** (bold) - bao gồm cả khi có dấu : theo sau
+  let cleaned = text.replace(/\*\*(.*?)\*\*(:)?/g, "$1$2");
+  
+  // Loại bỏ các dấu ** ở cuối câu
+  cleaned = cleaned.replace(/\*\*(.*?)\*\*([\.,:;\?!])/g, "$1$2");
+  
+  // Loại bỏ các dấu ** còn lại
+  cleaned = cleaned.replace(/\*\*(.*?)\*\*/g, "$1");
+  
+  // Loại bỏ các dấu * (italic)
+  cleaned = cleaned.replace(/\*(.*?)\*/g, "$1");
+  
+  // Loại bỏ các dấu # (heading)
+  cleaned = cleaned.replace(/^#+\s+/gm, "");
+  
+  // Loại bỏ các dấu ` (code)
+  cleaned = cleaned.replace(/`(.*?)`/g, "$1");
+  
+  // Loại bỏ dấu gạch chân __ hoặc _ (underscore)
+  cleaned = cleaned.replace(/__(.*?)__/g, "$1");
+  cleaned = cleaned.replace(/_(.*?)_/g, "$1");
+  
+  // Loại bỏ dấu ~~ (strikethrough)
+  cleaned = cleaned.replace(/~~(.*?)~~/g, "$1");
+  
+  // Các định dạng khác cần loại bỏ
+  cleaned = cleaned.replace(/==(.*?)==/g, "$1"); // Highlight
+  
+  // Kiểm tra lại nếu còn sót dấu **
+  cleaned = cleaned.replace(/\*\*/g, "");
+  
+  return cleaned;
 };
